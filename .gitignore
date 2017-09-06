@@ -1,7 +1,6 @@
 data/
 data
 data/*
-data
 annotations.json
 annotations_raw.json
 annotations.pkl
