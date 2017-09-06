@@ -2,6 +2,10 @@
 # when "," follows the last element,
 # so we simply remove all the "," before "}"
 
+# edit 2017.9.5: provided annotations is different from
+# official site in format, so actually we don't need to
+# preprocess it
+
 import sys
 
 def compress(content):
@@ -31,4 +35,4 @@ def reformat(src, target):
     file.write(content)
 
 if __name__ == '__main__':
-  reformat('sample.json', 'data.json')
+  reformat('annotations_raw.json', 'annotations.json')
