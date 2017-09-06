@@ -1,11 +1,6 @@
 data/
-<<<<<<< HEAD
 data
-annotations.json
-=======
 data/*
-data
 annotations.json
 annotations_raw.json
 annotations.pkl
->>>>>>> 179166bac484b045f7b1335dbdb9946f84184479
