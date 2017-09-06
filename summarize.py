@@ -3,12 +3,13 @@ import os
 import matplotlib.pyplot as plt
 import json
 import pickle
+import numpy as np
 
 
 src_dir = './data/'
 save_dir = './summary/'
 
-def sum_pic():
+def sum_img_size():
   names = os.listdir(src_dir)
   print(len(names))
   x = []
@@ -23,6 +24,29 @@ def sum_pic():
   print('Finish counting, plotting...')
   plt.scatter(x, y, s=1)
   plt.show()
+
+def sum_img_color():
+  names = os.listdir(src_dir)
+  num = len(names)
+  print(num)
+  color = np.zeros(3)
+  color_s = np.zeros(3)
+  for i, name in enumerate(names):
+    img = misc.imread(src_dir + name)
+    avg = np.mean(img, axis=(0, 1))
+    color += avg
+    color_s += np.square(avg)
+    if (i + 1) % 1000 == 0:
+      print("Process %d/210 ..." % ((i + 1) / 1000))
+  mean = color / num
+  mean_s = color_s / num
+  var = mean_s - np.square(mean)
+  print("Mean:", mean)
+  print("Var:", var)
+  np.save('mean.npy', mean)
+  np.save('var.npy', var)
+
+
 
 def sum_p_cnt(data):
   # how many people in one image (at most 11)
@@ -103,11 +127,5 @@ def sum_anno(file_name):
   with open(pickle_name, 'wb') as f:
     pickle.dump(data, f)
 
-  sum_p_cnt(data)
-  # sum_p_pos(data)
-  # sum_p_size(data)
-  # sum_k_pos(data)
-  # sum_k_cnt(data)
-
 if __name__ == '__main__':
-  sum_anno('annotations.json')
+  sum_img_color()
