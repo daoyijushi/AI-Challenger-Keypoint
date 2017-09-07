@@ -31,13 +31,18 @@ def sum_img_color():
   print(num)
   color = np.zeros(3)
   color_s = np.zeros(3)
+  error = []
   for i, name in enumerate(names):
-    img = misc.imread(src_dir + name)
-    avg = np.mean(img, axis=(0, 1))
-    color += avg
-    color_s += np.square(avg)
-    if (i + 1) % 1000 == 0:
-      print("Process %d/210 ..." % ((i + 1) / 1000))
+    try:
+      img = misc.imread(src_dir + name)
+      avg = np.mean(img, axis=(0, 1))
+      color += avg
+      color_s += np.square(avg)
+      if (i + 1) % 1000 == 0:
+        print("Process %d/210 ..." % ((i + 1) / 1000))
+    except:
+      print('Got error at %s' % name)
+      error.append(name)
   mean = color / num
   mean_s = color_s / num
   var = mean_s - np.square(mean)
@@ -45,8 +50,11 @@ def sum_img_color():
   print("Var:", var)
   np.save('mean.npy', mean)
   np.save('var.npy', var)
-
-
+  if len(error) != 0:
+    with open('error.log', 'w') as f:
+      for name in error:
+        f.write(name)
+        f.write('\n')
 
 def sum_p_cnt(data):
   # how many people in one image (at most 11)
