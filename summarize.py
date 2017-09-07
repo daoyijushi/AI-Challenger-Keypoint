@@ -99,18 +99,21 @@ def sum_k_pos(data):
   # where are the key points
   k_pos_x = []
   k_pos_y = []
-  for i in range(14):
-    k_pos_x.append([])
-    k_pos_y.append([])
+  cnt = 0
   for piece in data:
     for pos in piece['keypoint_annotations'].values():
       for i in range(14):
-        k_pos_x[i].append(pos[i * 3])
-        k_pos_y[i].append(pos[i * 3 + 1])
+        if pos[i * 3 + 2] != 3:
+          k_pos_x.append(pos[i * 3])
+          k_pos_y.append(pos[i * 3 + 1])
+          if pos[i * 3] <= 0 or pos[i * 3 + 1] <= 0:
+            cnt += 1
+            print(piece['image_id'])
   print('Showing keypoint position...')
   plt.title("Keypoint position")
   plt.scatter(k_pos_x, k_pos_y, s=1)
   plt.show()
+  print(cnt)
 
 def sum_k_cnt(data):
   # how many key points are expected to be seen (14 different pts in total)
@@ -136,4 +139,6 @@ def sum_anno(file_name):
     pickle.dump(data, f)
 
 if __name__ == '__main__':
-  sum_img_color()
+  with open('annotations.pkl', 'rb') as f:
+    data = pickle.load(f)
+  sum_k_pos(data)
