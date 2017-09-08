@@ -74,7 +74,10 @@ def vanilla():
 
   return l0, kmaps, amaps
 
-def get_loss(kmaps, amaps, ref_kmap, r_amap, ratio):
+def compute_loss(kmaps, amaps, ratio=1):
+  ref_kmap = tf.placeholder(tf.float32, (None,46,46,14))
+  ref_amap = tf.placeholder(tf.float32, (None,46,46,26))
+
   k_loss = tf.zeros([1])
   a_loss = tf.zeros([1])
   for m in kmaps:
@@ -82,7 +85,8 @@ def get_loss(kmaps, amaps, ref_kmap, r_amap, ratio):
   for m in amaps:
     a_loss += tf.sum(tf.square(m - ref_amap))
   loss = k_loss + ratio * a_loss
-  return k_loss, a_loss, loss
+
+  return ref_kmap, ref_amap, k_loss, a_loss, loss
 
 if __name__ == '__main__':
   l0, kmaps, amaps = vanilla()
