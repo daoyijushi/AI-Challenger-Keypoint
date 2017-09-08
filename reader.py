@@ -22,12 +22,10 @@ class Reader:
 
   def _resize(self, tmp, anno):
       h, w, _ = tmp.shape
-      short_e = min(h, w)
-      rate = self.length / short_e
-      tmp = misc.imresize(tmp, rate)
-      anno = np.round(np.array(anno) * rate)
-      # crop and adjust annotations
-      if short_e == h:
+      if h < w:
+        rate = self.length / h
+        tmp = misc.imresize(tmp, (self.length, int(rate*w)))
+        anno = np.round(np.array(anno) * rate)
         # crop in w
         maxx = np.max(anno[:, ::3])
         minx = np.min(anno[:, ::3])
@@ -42,17 +40,18 @@ class Reader:
           overflow = right - tmp.shape[1]
           left -= overflow
           right = tmp.shape[1]
-
-
         tmp = tmp[:, left:right, :]
         anno[:, ::3] -= left
       else:
+        rate = self.length / w
+        tmp = misc.imresize(tmp, (int(rate*h), self.length))
+        anno = np.round(np.array(anno) * rate)
         # crop in h
         maxy = np.max(anno[:, 1::3])
         miny = np.max(anno[:, 1::3])
         mid = (maxy + miny) // 2
-        top = mid - self.length / 2
-        bottom = mid + self.length / 2
+        top = int(mid - self.length / 2)
+        bottom = int(mid + self.length / 2)
         if top < 0:
           overflow = -top
           bottom += overflow
@@ -86,10 +85,11 @@ class Reader:
         keypoint_hmap.append(util.get_key_hmap(tmp.shape, annos, self.patch))
         affinity_hmap.append(util.get_aff_hmap(tmp.shape, annos, self.limbs))
       except Exception as e:
+        print(e)
         with open('reader.log', 'a') as f:
           f.write(piece['image_id'])
           f.write('\n')
-          f.write(e)
+          f.write(str(e))
           f.write('\n')
           
     img = np.array(img)

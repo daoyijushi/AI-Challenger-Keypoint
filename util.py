@@ -21,6 +21,7 @@ def normal_patch(l=16):
     for j in range(l):
       patch[i, j] = normal(i-l/2, j-l/2)
   patch /= patch[l//2,l//2] # make the center = 1
+  print(patch.shape)
   return patch
 
 def limbs():
