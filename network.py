@@ -21,9 +21,9 @@ def c7(inflow, outsize, name, filters=128):
     l1 = layers.conv2d(inflow, filters, 7)
     l2 = layers.conv2d(l1, filters, 7)
     l3 = layers.conv2d(l2, filters, 7)
-    l4 = layers.conv2d(l3, filters, 7)
-    l5 = layers.conv2d(l4, filters, 7)
-    l6 = layers.conv2d(l5, filters, 1)
+    # l4 = layers.conv2d(l3, filters, 7)
+    # l5 = layers.conv2d(l4, filters, 7)
+    l6 = layers.conv2d(l3, filters, 1)
     l7 = layers.conv2d(l6, outsize, 1)
   return l7
 
@@ -61,16 +61,16 @@ def vanilla():
   kmap_3, amap_3 = stage(concat_2, 'stage_3')
   concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
 
-  kmap_4, amap_4 = stage(concat_3, 'stage_4')
-  concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
+  # kmap_4, amap_4 = stage(concat_3, 'stage_4')
+  # concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
 
-  kmap_5, amap_5 = stage(concat_4, 'stage_5')
-  concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
+  # kmap_5, amap_5 = stage(concat_4, 'stage_5')
+  # concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
 
-  kmap_6, amap_6 = stage(concat_5, 'stage_6')
+  kmap_6, amap_6 = stage(concat_3, 'stage_6')
 
-  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
-  amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_6]
+  amaps = [amap_1, amap_2, amap_3, amap_6]
 
   return l0, kmaps, amaps
 
@@ -81,9 +81,9 @@ def compute_loss(kmaps, amaps, ratio=1):
   k_loss = tf.zeros([1])
   a_loss = tf.zeros([1])
   for m in kmaps:
-    k_loss += tf.sum(tf.square(m - ref_kmap))
+    k_loss += tf.reduce_sum(tf.square(m - ref_kmap))
   for m in amaps:
-    a_loss += tf.sum(tf.square(m - ref_amap))
+    a_loss += tf.reduce_sum(tf.square(m - ref_amap))
   loss = k_loss + ratio * a_loss
 
   return ref_kmap, ref_amap, k_loss, a_loss, loss

@@ -7,14 +7,15 @@ import random
 
 class Reader:
 
-  def __init__(self, img_dir, anno_path, batch_size, length=46):
+  def __init__(self, img_dir, anno_path, batch_size, l1=368, l2=46):
     self.img_dir = img_dir
     with open(anno_path, 'rb') as f:
       self.data = pickle.load(f)
     self.batch_size = batch_size
     self.index = 0
     self.volumn = len(self.data)
-    self.length = length
+    self.length = l1
+    self.short = l2
     # random.shuffle(self.data)
     self.patch = util.normal_patch()
     self.limbs = util.limbs()
@@ -48,7 +49,7 @@ class Reader:
           # if this condition happens
           # tmp.shape must be only a little bit different
           # from expected, so a simple resize is enough
-          tmp = np.imresize(tmp, (self.length, self.length))
+          tmp = misc.imresize(tmp, (self.length, self.length))
       else:
         rate = self.length / w
         tmp = misc.imresize(tmp, (int(rate*h), self.length))
@@ -65,7 +66,7 @@ class Reader:
           # print('crop from %d to %d' % (top, bottom))
           # print('croped anno', anno)
         else:
-          tmp = np.imresize(tmp, (self.length, self.length))
+          tmp = misc.imresize(tmp, (self.length, self.length))
       
       # print('fnial shape:', tmp.shape)
       # print('final anno:', anno)
@@ -88,6 +89,7 @@ class Reader:
       tmp = misc.imread(self.img_dir + piece['image_id'] + '.jpg')
       tmp, annos = self._resize(tmp, list(piece['keypoint_annotations'].values()))
       img.append(tmp)
+      tmp = misc.imresize(tmp, (self.short, self.short))
       keypoint_hmap.append(util.get_key_hmap(tmp.shape, annos, self.patch))
       affinity_hmap.append(util.get_aff_hmap(tmp.shape, annos, self.limbs))
       # except Exception as e:
