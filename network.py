@@ -33,7 +33,7 @@ def stage(inflow, name):
   return kmap, amap
 
 def vanilla():
-  l0 = tf.placeholder(tf.uint8, (None,368,368,3))
+  l0 = tf.placeholder(tf.float32, (None,368,368,3))
 
   # feature extraction
   l1 = c2(l0, 64, 'module_1')
@@ -62,10 +62,10 @@ def vanilla():
   concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
 
   kmap_4, amap_4 = stage(concat_3, 'stage_4')
-  concat_4 = tf.concat((kmap_4, amap_4, fmap), axis)
+  concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
 
   kmap_5, amap_5 = stage(concat_4, 'stage_5')
-  concat_5 = tf.concat((kmap_5, amap_5, fmap), axis)
+  concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
 
   kmap_6, amap_6 = stage(concat_5, 'stage_6')
 
