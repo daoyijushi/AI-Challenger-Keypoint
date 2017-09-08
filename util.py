@@ -39,9 +39,9 @@ def get_key_hmap(shape, annos, patch, channels=14, r=3):
   for keypoints in annos:
     for i in range(channels):
       num = 3 * i
-      kx = keypoints[num]
-      ky = keypoints[num + 1]
-      kv = keypoints[num + 2]
+      kx = int(keypoints[num])
+      ky = int(keypoints[num + 1])
+      kv = int(keypoints[num + 2])
       if validate(kx, ky, kv, y, x):
         left = max(kx-r, 0)
         right = min(kx+r, x)
@@ -49,8 +49,13 @@ def get_key_hmap(shape, annos, patch, channels=14, r=3):
         down = min(ky+r, y)
         # print(kx, ky)
         # print(left, right, top, down)
-        key_map[top:down, left:right, i] += \
-          patch[r-(ky-top):r+(down-ky), r-(kx-left):r+(right-kx)]
+        # key_map[top:down, left:right, i] = \
+        #   np.max(key_map[top:down, left:right, i], patch[r-(ky-top):r+(down-ky), r-(kx-left):r+(right-kx)])
+        # key_map[top:down, left:right, i] += \
+        #   patch[r-(ky-top):r+(down-ky), r-(kx-left):r+(right-kx)]
+        for h in range(top, down):
+          for w in range(left, right):
+            key_map[h, w, i] = max(key_map[h, w, i], patch[r+h-ky, r+w-kx])
   return key_map
 
 def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
@@ -110,6 +115,7 @@ def get_aff_hmap(shape, annos, limbs):
         draw_limb(aff_map, x1, y1, x2, y2, channel)
         cnt[channel] += 1
   aff_map /= (np.array(cnt).reshape(len(limbs),1))
+  aff_map = aff_map.reshape((h, w, len(limbs) * 2))
   return aff_map
 
 def cover_key_map(img, key_map):
@@ -122,7 +128,7 @@ def cover_key_map(img, key_map):
   return img
 
 def cover_aff_map(img, aff_map):
-  aff_map = np.sum(aff_map, axis=(2,3)) / 14
+  aff_map = np.sum(aff_map, axis=2) / 14
   aff_map *= 256
   aff_map = np.round(np.abs(aff_map)).astype(np.uint8)
   mask = (aff_map != 0)
