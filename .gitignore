@@ -4,6 +4,7 @@ data/*
 image/
 misc/annotations.json
 annotations_raw.json
+*.jpg
 annotations.pkl
 c681fcce2fab08692d11100fd8195353cf27a631.jpg
 fb2855f677ab289d3ad548809872c39d7a5ed14e.jpg
