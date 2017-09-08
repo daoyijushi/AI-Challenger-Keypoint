@@ -2,7 +2,7 @@ data/
 data
 data/*
 image/
-annotations.json
+misc/annotations.json
 annotations_raw.json
 annotations.pkl
 c681fcce2fab08692d11100fd8195353cf27a631.jpg

@@ -3,6 +3,7 @@ import pickle
 import random
 from scipy import misc
 import numpy as np
+import random
 
 class Reader:
 
@@ -14,55 +15,58 @@ class Reader:
     self.index = 0
     self.volumn = len(self.data)
     self.length = length
-    random.shuffle(self.data)
+    # random.shuffle(self.data)
     self.patch = util.normal_patch()
     self.limbs = util.limbs()
+    np.random.seed(822)
     print('Reader initialized. Data volumn %d, batch size %d.' \
       % (self.volumn, self.batch_size))
 
   def _resize(self, tmp, anno):
       h, w, _ = tmp.shape
+      anno = np.array(anno, dtype=np.float64)
+      # print('init shape:', tmp.shape)
+      # print('init anno', anno)
       if h < w:
         rate = self.length / h
         tmp = misc.imresize(tmp, (self.length, int(rate*w)))
-        anno = np.round(np.array(anno) * rate)
-        # crop in w
-        maxx = np.max(anno[:, ::3])
-        minx = np.min(anno[:, ::3])
-        mid = (maxx + minx) // 2
-        left = int(mid - self.length // 2)
-        right = int(mid + self.length // 2)
-        if left < 0:
-          overflow = -left
-          right += overflow
-          left = 0
-        elif right > tmp.shape[1]:
-          overflow = right - tmp.shape[1]
-          left -= overflow
-          right = tmp.shape[1]
-        tmp = tmp[:, left:right, :]
-        anno[:, ::3] -= left
+        anno[:, ::3] *= rate
+        anno[:, 1::3] *= rate
+        # print('rescaled shape:', tmp.shape)
+        # print('rescaled anno:', anno)
+        # random crop in w
+        if tmp.shape[1] > self.length:
+          left = np.random.randint(0, tmp.shape[1] - self.length)
+          right = left + self.length
+          tmp = tmp[:, left:right, :]
+          anno[:, ::3] -= left
+          # print('crop from %d to %d' % (left, right))
+          # print('croped anno', anno)
+        else:
+          # if this condition happens
+          # tmp.shape must be only a little bit different
+          # from expected, so a simple resize is enough
+          tmp = np.imresize(tmp, (self.length, self.length))
       else:
         rate = self.length / w
         tmp = misc.imresize(tmp, (int(rate*h), self.length))
-        anno = np.round(np.array(anno) * rate)
-        # crop in h
-        maxy = np.max(anno[:, 1::3])
-        miny = np.max(anno[:, 1::3])
-        mid = (maxy + miny) // 2
-        top = int(mid - self.length / 2)
-        bottom = int(mid + self.length / 2)
-        if top < 0:
-          overflow = -top
-          bottom += overflow
-          top = 0
-        elif bottom > tmp.shape[0]:
-          overflow = bottom - tmp.shape[0]
-          top -= overflow
-          bottom = tmp.shape[0]
-        tmp = tmp[top:bottom, :, :]
-        anno[:, 1::3] -= top
+        anno[:, ::3] *= rate
+        anno[:, 1::3] *= rate
+        # print('rescaled shape:', tmp.shape)
+        if tmp.shape[0] > self.length:
+          # print('rescaled anno:', anno)
+          # random crop in h
+          top = np.random.randint(0, tmp.shape[0] - self.length)
+          bottom = top + self.length
+          tmp = tmp[top:bottom, :, :]
+          anno[:, 1::3] -= top
+          # print('crop from %d to %d' % (top, bottom))
+          # print('croped anno', anno)
+        else:
+          tmp = np.imresize(tmp, (self.length, self.length))
       
+      # print('fnial shape:', tmp.shape)
+      # print('final anno:', anno)
       return tmp, anno.astype(np.int16)
 
   def next_batch(self):

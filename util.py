@@ -28,6 +28,12 @@ def limbs():
   return ((13,14),(14,4),(14,1),(4,5),(5,6),(1,2),(2,3),(14,10), \
     (10,11),(11,12),(14,7),(7,8),(8,9))
 
+
+def validate(x, y, v, h, w):
+  if x < 0 or x >= w or y < 0 or y >= h or v == 3:
+    return False
+  return True
+
 # get the keypoint ground truth
 def get_key_hmap(shape, annos, patch, channels=14, r=8):
   y, x, _ = shape
@@ -38,18 +44,22 @@ def get_key_hmap(shape, annos, patch, channels=14, r=8):
       kx = keypoints[num]
       ky = keypoints[num + 1]
       kv = keypoints[num + 2]
-      if kv == 1:
+      if validate(kx, ky, kv, y, x):
         left = max(kx-r, 0)
         right = min(kx+r, x)
         top = max(ky-r, 0)
         down = min(ky+r, y)
+        # print(kx, ky)
+        # print(left, right, top, down)
         key_map[top:down, left:right, i] += \
-          patch[r-(kx-left):r+(right-kx), r-(ky-top):r+(down-ky)]
+          patch[r-(ky-top):r+(down-ky), r-(kx-left):r+(right-kx)]
   return key_map
 
 def draw_limb(aff_map, x1, y1, x2, y2, channel, r=3):
   diff_x = x2 - x1
   diff_y = y2 - y1
+  if diff_x == 0 and diff_y == 0:
+    return
 
   if diff_x > 0:
     step_x = 1
@@ -85,9 +95,9 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, r=3):
 # supposed to be
 # ((13,14),(14,4),(14,1),(4,5),(5,6),(1,2),(2,3),(14,10),(10,11),(11,12),(14,7),(7,8),(8,9))
 def get_aff_hmap(shape, annos, limbs):
-  y, x, _ = shape
-  aff_map = np.zeros((y, x, len(limbs), 2))
-  cnt = [0] * len(limbs)
+  h, w, _ = shape
+  aff_map = np.zeros((h, w, len(limbs), 2))
+  cnt = [1e-8] * len(limbs)
   for human in annos:
     for channel, limb in enumerate(limbs):
       num = (limb[0] - 1) * 3
@@ -98,7 +108,7 @@ def get_aff_hmap(shape, annos, limbs):
       x2 = human[num]
       y2 = human[num + 1]
       v2 = human[num + 2]
-      if v1 != 3 and v2 != 3:
+      if validate(x1, y1, v1, h, w) and validate(x2, y2, v2, h, w):
         draw_limb(aff_map, x1, y1, x2, y2, channel)
         cnt[channel] += 1
   aff_map /= (np.array(cnt).reshape(len(limbs),1))
