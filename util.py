@@ -59,6 +59,10 @@ def get_key_hmap(shape, annos, patch, channels=14, r=3):
   return key_map
 
 def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
+  x1 = int(x1)
+  x2 = int(x2)
+  y1 = int(y1)
+  y2 = int(y2)
   diff_x = x2 - x1
   diff_y = y2 - y1
   if diff_x == 0 and diff_y == 0:

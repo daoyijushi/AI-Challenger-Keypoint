@@ -90,6 +90,7 @@ class Reader:
       tmp, annos = self._resize(tmp, list(piece['keypoint_annotations'].values()))
       img.append(tmp)
       tmp = misc.imresize(tmp, (self.short, self.short))
+      annos = np.round(annos * self.short / self.length)
       keypoint_hmap.append(util.get_key_hmap(tmp.shape, annos, self.patch))
       affinity_hmap.append(util.get_aff_hmap(tmp.shape, annos, self.limbs))
       # except Exception as e:
@@ -108,10 +109,7 @@ class Reader:
     return img, keypoint_hmap, affinity_hmap
 
 if __name__ == '__main__':
-  r = Reader('./image/', 'anno_sample.pkl', 1)
+  r = Reader('./data/train/', 'annotations.pkl', 1)
   i, k, a = r.next_batch()
-  i = i[0]
-  k = k[0]
-  a = a[0]
-  util.visualization(i, k, a)
-
+  print(np.sum(k))
+  print(np.sum(a))

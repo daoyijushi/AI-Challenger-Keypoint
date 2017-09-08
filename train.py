@@ -30,7 +30,7 @@ for i in range(1000000):
   print('Iter %d, k loss %g, a loss %g, timecost %g ms' % \
     (i, batch_k_loss, batch_a_loss, interval))
   
-  if i % 10 == 0:
+  if i % 1000 == 0:
     k, a = sess.run([kmaps,amaps], feed_dict={inflow:img[0:1]})
     img = np.zeros([46,46,3])
     k = k[0].reshape([46,46,14])
