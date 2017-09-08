@@ -7,7 +7,7 @@ import random
 
 class Reader:
 
-  def __init__(self, img_dir, anno_path, batch_size, length=368):
+  def __init__(self, img_dir, anno_path, batch_size, length=46):
     self.img_dir = img_dir
     with open(anno_path, 'rb') as f:
       self.data = pickle.load(f)
@@ -18,6 +18,8 @@ class Reader:
     # random.shuffle(self.data)
     self.patch = util.normal_patch()
     self.limbs = util.limbs()
+    self.mean = np.array([122.35131039, 115.17054545, 107.60200075])
+    self.var = np.array([35.77071304, 35.39201422, 37.7260754])
     np.random.seed(822)
     print('Reader initialized. Data volumn %d, batch size %d.' \
       % (self.volumn, self.batch_size))
@@ -82,29 +84,32 @@ class Reader:
     keypoint_hmap = []
     affinity_hmap = []
     for piece in data_batch:
-      try:
-        tmp = misc.imread(self.img_dir + piece['image_id'] + '.jpg')
-        tmp, annos = self._resize(tmp, list(piece['keypoint_annotations'].values()))
-        img.append(tmp)
-        keypoint_hmap.append(util.get_key_hmap(tmp.shape, annos, self.patch))
-        affinity_hmap.append(util.get_aff_hmap(tmp.shape, annos, self.limbs))
-      except Exception as e:
-        print(e)
-        with open('reader.log', 'a') as f:
-          f.write(piece['image_id'])
-          f.write('\n')
-          f.write(str(e))
-          f.write('\n')
+      # try:
+      tmp = misc.imread(self.img_dir + piece['image_id'] + '.jpg')
+      tmp, annos = self._resize(tmp, list(piece['keypoint_annotations'].values()))
+      img.append(tmp)
+      keypoint_hmap.append(util.get_key_hmap(tmp.shape, annos, self.patch))
+      affinity_hmap.append(util.get_aff_hmap(tmp.shape, annos, self.limbs))
+      # except Exception as e:
+      #   print(e)
+      #   with open('reader.log', 'a') as f:
+      #     f.write(piece['image_id'])
+      #     f.write('\n')
+      #     f.write(str(e))
+      #     f.write('\n')
           
-    img = np.array(img)
+    img = np.array(img, dtype=np.float64)
+    img -= self.mean
+    img /= self.var
     keypoint_hmap = np.array(keypoint_hmap)
     affinity_hmap = np.array(affinity_hmap)
     return img, keypoint_hmap, affinity_hmap
 
-# if __name__ == '__main__':
-#   r = Reader('./data/train/', 'annotations.pkl', 128)
-#   while True:
-#     tic = tim
-#     try:
-#       img, kmap, amap = r.next_batch()
+if __name__ == '__main__':
+  r = Reader('./image/', 'anno_sample.pkl', 1)
+  i, k, a = r.next_batch()
+  i = i[0]
+  k = k[0]
+  a = a[0]
+  util.visualization(i, k, a)
 

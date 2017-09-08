@@ -12,16 +12,14 @@ def json2pickle(fname):
 
 # normal distribution, set sigma = 4
 # that is to make the keypoint is 16x16 large
-def normal(x, y):
-  return np.exp(-(x**2+y**2)/8) / 8 / np.pi
+def normal(x, y, sigma=0.4):
+  return np.exp(-(x**2+y**2)/sigma)
 
-def normal_patch(l=16):
+def normal_patch(l=8):
   patch = np.zeros((l,l))
   for i in range(l):
     for j in range(l):
       patch[i, j] = normal(i-l/2, j-l/2)
-  patch /= patch[l//2,l//2] # make the center = 1
-  print(patch.shape)
   return patch
 
 def limbs():
@@ -29,14 +27,13 @@ def limbs():
   return ((13,14),(14,4),(14,1),(4,5),(5,6),(1,2),(2,3),(14,10), \
     (10,11),(11,12),(14,7),(7,8),(8,9))
 
-
 def validate(x, y, v, h, w):
   if x < 0 or x >= w or y < 0 or y >= h or v == 3:
     return False
   return True
 
 # get the keypoint ground truth
-def get_key_hmap(shape, annos, patch, channels=14, r=8):
+def get_key_hmap(shape, annos, patch, channels=14, r=3):
   y, x, _ = shape
   key_map = np.zeros((y, x, channels))
   for keypoints in annos:
@@ -56,7 +53,7 @@ def get_key_hmap(shape, annos, patch, channels=14, r=8):
           patch[r-(ky-top):r+(down-ky), r-(kx-left):r+(right-kx)]
   return key_map
 
-def draw_limb(aff_map, x1, y1, x2, y2, channel, r=3):
+def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
   diff_x = x2 - x1
   diff_y = y2 - y1
   if diff_x == 0 and diff_y == 0:
@@ -160,6 +157,6 @@ def visualization(img, key_map, aff_map, save_name='vis.jpg'):
   misc.imsave(save_name, img)
 
 if __name__ == '__main__':
-  json2pickle('annotations.json')
+  test_key_hmap()
 
 
