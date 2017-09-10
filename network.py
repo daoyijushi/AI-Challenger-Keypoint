@@ -23,16 +23,16 @@ def c7(inflow, outsize, name, filters=128):
     l3 = layers.conv2d(l2, filters, 7)
     # l4 = layers.conv2d(l3, filters, 7)
     # l5 = layers.conv2d(l4, filters, 7)
-    l6 = layers.conv2d(l3, filters, 1)
-    l7 = layers.conv2d(l6, outsize, 1)
+    l6 = layers.conv2d(l3, filters, 1, activation_fn=None)
+    l7 = layers.conv2d(l6, outsize, 1, activation_fn=None)
   return l7
 
-def stage(inflow, name):
+def stage(inflow, name, amap_out):
   kmap = c7(inflow, 14, name + '_1')
-  amap = c7(inflow, 26, name + '_2')
+  amap = c7(inflow, amap_out, name + '_2')
   return kmap, amap
 
-def vanilla():
+def vanilla(amap_out):
   l0 = tf.placeholder(tf.float32, (None,368,368,3))
 
   # feature extraction
@@ -51,14 +51,14 @@ def vanilla():
   kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
 
   l5_2 = c4(fmap, (128,128,128,512), 'stage_1_2')
-  amap_1 = layers.conv2d(l5_2, 26, 1) # 13 limbs
+  amap_1 = layers.conv2d(l5_2, amap_out, 1) # 13 limbs
 
   concat_1 = tf.concat((kmap_1, amap_1, fmap), axis=3)
 
-  kmap_2, amap_2 = stage(concat_1, 'stage_2')
+  kmap_2, amap_2 = stage(concat_1, 'stage_2', amap_out)
   concat_2 = tf.concat((kmap_2, amap_2, fmap), axis=3)
 
-  kmap_3, amap_3 = stage(concat_2, 'stage_3')
+  kmap_3, amap_3 = stage(concat_2, 'stage_3', amap_out)
   concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
 
   # kmap_4, amap_4 = stage(concat_3, 'stage_4')
@@ -67,23 +67,68 @@ def vanilla():
   # kmap_5, amap_5 = stage(concat_4, 'stage_5')
   # concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
 
-  kmap_6, amap_6 = stage(concat_3, 'stage_6')
+  kmap_6, amap_6 = stage(concat_3, 'stage_6', amap_out)
 
   kmaps = [kmap_1, kmap_2, kmap_3, kmap_6]
   amaps = [amap_1, amap_2, amap_3, amap_6]
 
   return l0, kmaps, amaps
 
-def compute_loss(kmaps, amaps, ratio=0.01):
-  ref_kmap = tf.placeholder(tf.float32, (None,46,46,14))
-  ref_amap = tf.placeholder(tf.float32, (None,46,46,26))
+def dirmap():
+  l0 = tf.placeholder(tf.float32, (None,368,368,3))
+
+  # feature extraction
+  l1 = c2(l0, 64, 'module_1')
+  p1 = layers.max_pool2d(l1, 2)
+
+  l2 = c2(p1, 128, 'module_2')
+  p2 = layers.max_pool2d(l2, 2)
+
+  l3 = c4(p2, (256,256,256,256), 'module_3')
+  p3 = layers.max_pool2d(l3, 2)
+
+  fmap = c4(p3, (512,512,256,256), 'module_4')
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  dmap_1 = layers.conv2d(l5_1, 52, 1) # 26*2 limbs
+
+  concat_1 = tf.concat((dmap_1, fmap), axis=3)
+
+  dmap_2 = c7(concat_1, 52, 'stage_2')
+  concat_2 = tf.concat((dmap_2, fmap), axis=3)
+
+  dmap_3 = c7(concat_2, 52, 'stage_3')
+  concat_3 = tf.concat((dmap_3, fmap), axis=3)
+
+  dmap_4 = c7(concat_3, 52, 'stage_4')
+  # concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
+
+  # kmap_5, amap_5 = stage(concat_4, 'stage_5')
+  # concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
+
+  # kmap_6, amap_6 = stage(concat_3, 'stage_6')
+
+  dmaps = [dmap_1, dmap_2, dmap_3, dmap_4]
+
+  return l0, dmaps
+
+def compute_single_loss(inflow):
+  ref = tf.placeholder(tf.float32, inflow[0].shape)
+  loss = tf.zeros([1])
+  for m in inflow:
+    loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref), axis=(1,2,3)))
+  return ref, loss
+
+def compute_loss(kmaps, amaps, ratio=0.5):
+  ref_kmap = tf.placeholder(tf.float32, kmaps[0].shape)
+  ref_amap = tf.placeholder(tf.float32, amaps[0].shape)
 
   k_loss = tf.zeros([1])
   a_loss = tf.zeros([1])
   for m in kmaps:
-    k_loss += tf.reduce_sum(tf.square(m - ref_kmap))
+    k_loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref_kmap), axis=(1,2,3)))
   for m in amaps:
-    a_loss += tf.reduce_sum(tf.square(m - ref_amap))
+    a_loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref_amap), axis=(1,2,3)))
   loss = k_loss + ratio * a_loss
 
   return ref_kmap, ref_amap, k_loss, a_loss, loss

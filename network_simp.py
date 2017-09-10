@@ -74,7 +74,7 @@ def compute_loss(kmaps):
 
   loss = tf.zeros([1])
   for m in kmaps:
-    loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref_kmap), axis=(1,2,3)))
+    loss += tf.reduce_mean(tf.square(m - ref_kmap))
 
   return ref_kmap, loss
 

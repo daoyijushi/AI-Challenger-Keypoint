@@ -20,7 +20,6 @@ sess.run(init_op)
 for i in range(1000000):
   tic = time.time()
   img, kmap, amap = r.next_batch()
-  img = np.zeros((32,368,368,3))
   _, batch_k_loss, batch_a_loss = \
     sess.run([train_step, k_loss, a_loss], feed_dict={inflow:img, ref_kmap:kmap, ref_amap:amap})
   toc = time.time()

@@ -13,11 +13,11 @@ def json2pickle(fname):
 def normal(x, y, sigma=4):
   return np.exp(-(x**2+y**2)/sigma)
 
-def normal_patch(l=10):
+def normal_patch(l, s):
   patch = np.zeros((l,l))
   for i in range(l):
     for j in range(l):
-      patch[i, j] = normal(i-l/2, j-l/2)
+      patch[i, j] = normal(i-l/2, j-l/2, s)
   return patch
 
 def limbs():
@@ -31,7 +31,7 @@ def validate(x, y, v, h, w):
   return True
 
 # get the keypoint ground truth
-def get_key_hmap(shape, annos, patch, channels=14, r=5):
+def get_key_hmap(shape, annos, patch, r, channels=14):
   y, x, _ = shape
   key_map = np.zeros((y, x, channels))
   for keypoints in annos:
@@ -55,6 +55,68 @@ def get_key_hmap(shape, annos, patch, channels=14, r=5):
           for w in range(left, right):
             key_map[h, w, i] = max(key_map[h, w, i], patch[r+h-ky, r+w-kx])
   return key_map
+
+# get the limb direction
+# the patch should be np.ones
+def get_dir_hmap(shape, annos, patch, limbs, r):
+  y, x, _ = shape
+  dir_map = np.zeros((y, x, len(limbs) * 2))
+  dir_map_re = np.zeros((y, x, len(limbs * 2)))
+
+  cnt = [1e-8, 1e-8] * len(limbs)
+  for human in annos:
+    for channel, limb in enumerate(limbs):
+      num = (limb[0] - 1) * 3
+      x1 = human[num]
+      y1 = human[num + 1]
+      v1 = human[num + 2]
+      num = (limb[1] - 1) * 3
+      x2 = human[num]
+      y2 = human[num + 1]
+      v2 = human[num + 2]
+      if validate(x1, y1, v1, y, x) and validate(x2, y2, v2, y, x):
+        diff_x = x2 - x1
+        diff_y = y2 - y1
+        dis = np.sqrt(diff_x ** 2 + diff_y ** 2)
+        if dis != 0:
+          v = np.array([diff_x / dis, diff_y / dis])
+          cnt[channel * 2] += 1
+          cnt[channel * 2 + 1] += 1
+
+          left = max(x1-r, 0)
+          right = min(x1+r, x)
+          top = max(y1-r, 0)
+          down = min(y1+r, y)
+          dir_map[top:down, left:right, channel*2:(channel*2+2)] += \
+            (patch[r-(y1-top):r+(down-y1), r-(x1-left):r+(right-x1), :] * v)
+
+
+          left = max(x2-r, 0)
+          right = min(x2+r, x)
+          top = max(y2-r, 0)
+          down = min(y2+r, y)
+          dir_map_re[top:down, left:right, channel*2:(channel*2+2)] -= \
+            (patch[r-(y2-top):r+(down-y2), r-(x2-left):r+(right-x2), :] * v)
+
+  dir_map /= (np.array(cnt).reshape(len(limbs)*2))
+  dir_map_re /= (np.array(cnt).reshape(len(limbs)*2))
+  return dir_map, dir_map_re
+
+# add weights for direction map
+def weight_dir_hmap(kmap, dmap, dmap_re, limbs):
+  for channel,limb in enumerate(limbs):
+    start = limb[0] - 1
+    weight = kmap[:,:,start]
+    dmap[:,:,channel*2] *= weight
+    dmap[:,:,channel*2+1] *= weight
+
+    end = limb[1] - 1
+    weight = kmap[:,:,end]
+    dmap_re[:,:,channel*2] *= weight
+    dmap_re[:,:,channel*2+1] *= weight
+
+  dmap = np.concatenate((dmap, dmap_re), axis=2)
+  return dmap
 
 def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
   x1 = int(x1)
