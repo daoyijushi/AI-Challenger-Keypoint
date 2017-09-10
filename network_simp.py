@@ -29,8 +29,7 @@ def c7(inflow, outsize, name, filters=128):
 
 def stage(inflow, name):
   kmap = c7(inflow, 14, name + '_1')
-  amap = c7(inflow, 26, name + '_2')
-  return kmap, amap
+  return kmap
 
 def vanilla():
   l0 = tf.placeholder(tf.float32, (None,368,368,3))
@@ -50,43 +49,34 @@ def vanilla():
   l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
   kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
 
-  l5_2 = c4(fmap, (128,128,128,512), 'stage_1_2')
-  amap_1 = layers.conv2d(l5_2, 26, 1) # 13 limbs
+  concat_1 = tf.concat((kmap_1, fmap), axis=3)
 
-  concat_1 = tf.concat((kmap_1, amap_1, fmap), axis=3)
+  kmap_2 = stage(concat_1, 'stage_2')
+  concat_2 = tf.concat((kmap_2, fmap), axis=3)
 
-  kmap_2, amap_2 = stage(concat_1, 'stage_2')
-  concat_2 = tf.concat((kmap_2, amap_2, fmap), axis=3)
+  kmap_3 = stage(concat_2, 'stage_3')
+  concat_3 = tf.concat((kmap_3, fmap), axis=3)
 
-  kmap_3, amap_3 = stage(concat_2, 'stage_3')
-  concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
-
-  # kmap_4, amap_4 = stage(concat_3, 'stage_4')
+  kmap_4 = stage(concat_3, 'stage_4')
   # concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
 
   # kmap_5, amap_5 = stage(concat_4, 'stage_5')
   # concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
 
-  kmap_6, amap_6 = stage(concat_3, 'stage_6')
+  # kmap_6, amap_6 = stage(concat_3, 'stage_6')
 
-  kmaps = [kmap_1, kmap_2, kmap_3, kmap_6]
-  amaps = [amap_1, amap_2, amap_3, amap_6]
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4]
 
-  return l0, kmaps, amaps
+  return l0, kmaps
 
-def compute_loss(kmaps, amaps, ratio=0.01):
+def compute_loss(kmaps):
   ref_kmap = tf.placeholder(tf.float32, (None,46,46,14))
-  ref_amap = tf.placeholder(tf.float32, (None,46,46,26))
 
-  k_loss = tf.zeros([1])
-  a_loss = tf.zeros([1])
+  loss = tf.zeros([1])
   for m in kmaps:
-    k_loss += tf.reduce_sum(tf.square(m - ref_kmap))
-  for m in amaps:
-    a_loss += tf.reduce_sum(tf.square(m - ref_amap))
-  loss = k_loss + ratio * a_loss
+    loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref_kmap), axis=(1,2,3)))
 
-  return ref_kmap, ref_amap, k_loss, a_loss, loss
+  return ref_kmap, loss
 
 if __name__ == '__main__':
   l0, kmaps, amaps = vanilla()

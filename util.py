@@ -10,12 +10,10 @@ def json2pickle(fname):
   with open(fname.split('.')[0]+'.pkl', 'wb') as f:
     pickle.dump(data, f)
 
-# normal distribution, set sigma = 4
-# that is to make the keypoint is 16x16 large
-def normal(x, y, sigma=0.4):
+def normal(x, y, sigma=4):
   return np.exp(-(x**2+y**2)/sigma)
 
-def normal_patch(l=8):
+def normal_patch(l=10):
   patch = np.zeros((l,l))
   for i in range(l):
     for j in range(l):
@@ -33,7 +31,7 @@ def validate(x, y, v, h, w):
   return True
 
 # get the keypoint ground truth
-def get_key_hmap(shape, annos, patch, channels=14, r=3):
+def get_key_hmap(shape, annos, patch, channels=14, r=5):
   y, x, _ = shape
   key_map = np.zeros((y, x, channels))
   for keypoints in annos:
@@ -123,7 +121,7 @@ def get_aff_hmap(shape, annos, limbs):
   return aff_map
 
 def cover_key_map(img, key_map):
-  key_map = np.sum(key_map, axis=2)
+  key_map = np.amax(key_map, axis=2)
   key_map *= 256
   key_map = np.round(key_map).astype(np.uint8)
   mask = (key_map != 0)
@@ -141,8 +139,8 @@ def cover_aff_map(img, aff_map):
   return img
 
 def test_aff_hmap():
-  with open('anno_sample.json', 'r') as f:
-    data = json.load(f)
+  with open('anno_sample.pickle', 'rb') as f:
+    data = pickle.load(f)
   piece = data[1]
   img = misc.imread('./image/' + piece['image_id'] + '.jpg')
   annos = piece['keypoint_annotations'].values()
@@ -152,14 +150,18 @@ def test_aff_hmap():
   misc.imsave('aff_map.jpg', img)
 
 def test_key_hmap():
-  with open('anno_sample.json', 'r') as f:
-    data = json.load(f)
+  with open('anno_sample.pkl', 'rb') as f:
+    data = pickle.load(f)
   piece = data[1]
   img = misc.imread('./image/' + piece['image_id'] + '.jpg')
   annos = piece['keypoint_annotations'].values()
   key_map = get_key_hmap(img.shape, annos, normal_patch())
   img = cover_key_map(img, key_map)
-  misc.imsave('key_map.jpg', img)
+  misc.imsave('key_map_img.jpg', img)
+  key_map = np.amax(key_map, axis=2)
+  key_map *= 256
+  key_map = np.round(key_map).astype(np.uint8)
+  misc.imsave('key_map.jpg', key_map)
 
 def visualization(img, key_map, aff_map, save_name='vis.jpg'):
   img = cover_aff_map(img, aff_map)

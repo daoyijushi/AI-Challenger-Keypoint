@@ -109,7 +109,13 @@ class Reader:
     return img, keypoint_hmap, affinity_hmap
 
 if __name__ == '__main__':
-  r = Reader('./data/train/', 'annotations.pkl', 1)
+  r = Reader('./image/', 'anno_sample.pkl', 1)
   i, k, a = r.next_batch()
   print(np.sum(k))
-  print(np.sum(a))
+  img = misc.imresize(i[0], (46,46))
+  img = util.cover_key_map(img, k[0])
+  misc.imsave('img.jpg', img)
+  k = np.amax(k[0], axis=2)
+  k *= 256
+  k = np.round(k).astype(np.uint8)
+  misc.imsave('key_map.jpg', k)
