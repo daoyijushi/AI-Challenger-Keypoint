@@ -114,7 +114,7 @@ class DirReader:
     self.short = l2
     self.patch_l = pl
     self.patch_s = ps
-    # random.shuffle(self.data)
+    random.shuffle(self.data)
     self.patch = util.normal_patch(self.patch_l, self.patch_s)
     self.ones = np.ones((self.patch_l,self.patch_l,2))
     self.limbs = util.limbs()

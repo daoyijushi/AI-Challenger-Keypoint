@@ -11,6 +11,8 @@ import os
 model_name = sys.argv[1]
 model_path = './model/' + model_name + '/'
 
+step_cnt = int(sys.argv[2])
+
 r = reader.DirReader('./data/train/', 'annotations.pkl', 32)
 l_rate = 1e-3
 
@@ -35,7 +37,8 @@ if os.path.exists(model_path):
     saver.restore(sess, ckpt.model_checkpoint_path)
 
 
-for i in range(1000000):
+i = step_cnt
+while True:
   start_time = time.time()
 
   tic = time.time()
