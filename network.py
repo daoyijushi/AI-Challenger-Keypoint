@@ -114,7 +114,7 @@ def dirmap():
 
 def compute_single_loss(inflow):
   ref = tf.placeholder(tf.float32, inflow[0].shape)
-  loss = tf.zeros([1])
+  loss = tf.constant(0, dtype=tf.float32)
   for m in inflow:
     loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref), axis=(1,2,3)))
   return ref, loss

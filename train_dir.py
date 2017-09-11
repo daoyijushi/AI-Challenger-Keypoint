@@ -4,35 +4,60 @@ import util
 import tensorflow as tf
 import time
 import numpy as np
-from scipy import misc
+import scipy.misc as misc
+import sys
+import os
+
+model_name = sys.argv[1]
+model_path = './model/' + model_name + '/'
 
 r = reader.DirReader('./data/train/', 'annotations.pkl', 32)
 l_rate = 1e-3
+
+sess = tf.Session()
 
 inflow, dmaps = network.dirmap()
 ref_dmap, loss = network.compute_single_loss(dmaps)
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 
-sess = tf.Session()
+tf.summary.scalar('loss',loss)
+merged = tf.summary.merge_all()
+writer = tf.summary.FileWriter(model_path, sess.graph)
+
+saver = tf.train.Saver()
+
 init_op = tf.global_variables_initializer()
 sess.run(init_op)
 
+if os.path.exists(model_path):
+  ckpt = tf.train.get_checkpoint_state(model_path)
+  if ckpt:
+    saver.restore(sess, ckpt.model_checkpoint_path)
+
+
 for i in range(1000000):
+  start_time = time.time()
+
   tic = time.time()
   img, kmap, dmap = r.next_batch()
-  r.index = 0 # train on the first batch for sanity check
-  _, batch_loss = \
-    sess.run([train_step, loss], feed_dict={inflow:img, ref_dmap:dmap})
+  _, batch_loss, log = \
+    sess.run([train_step, loss, merged], feed_dict={inflow:img, ref_dmap:dmap})
   toc = time.time()
   interval = (toc - tic) * 1000
 
   print('Iter %d, loss %g, timecost %g ms' % (i, batch_loss, interval))
-  
+  writer.add_summary(log, i)
+
   if i % 1000 == 0:
-    d = sess.run(dmaps, feed_dict={inflow:img[0:1]})[0]
-    d = d[0].reshape([46,46,52])
-    dx = d[:,:,::2]
-    dy = d[:,:,1::2]
-    d = np.square(dx) + np.square(dy)
-    d = np.max(d, axis=2)
-    misc.imsave('dir_%d.jpg' % i, d)
+    d = sess.run(dmaps, feed_dict={inflow:img[0:1]})
+    
+    d = d[-1].reshape([46,46,52])
+    util.vis_dmap(d, 'res_%d.jpg' % i)
+    util.vis_dmap(dmap[0], 'truth_%d.jpg' % i)
+    misc.imsave('src_%d.jpg' % i, img[0])
+
+  # save every 15 min
+  if toc - start_time >= 800:
+    save_name = '%s.ckpt' % model_name
+    saver.save(sess, model_path+save_name, global_step=i)
+    start_time = toc
