@@ -48,16 +48,14 @@ for i in range(1000000):
   print('Iter %d, loss %g, timecost %g ms' % (i, batch_loss, interval))
   writer.add_summary(log, i)
 
-  if i % 1000 == 0:
+  if i % 500 == 0 and i > 1:
     d = sess.run(dmaps, feed_dict={inflow:img[0:1]})
     
     d = d[-1].reshape([46,46,52])
     util.vis_dmap(d, 'res_%d.jpg' % i)
     util.vis_dmap(dmap[0], 'truth_%d.jpg' % i)
     misc.imsave('src_%d.jpg' % i, img[0])
-
-  # save every 15 min
-  if toc - start_time >= 800:
+    
     save_name = '%s.ckpt' % model_name
     saver.save(sess, model_path+save_name, global_step=i)
     start_time = toc
