@@ -39,8 +39,6 @@ if os.path.exists(model_path):
 
 i = step_cnt
 while True:
-  start_time = time.time()
-
   tic = time.time()
   img, kmap, dmap = r.next_batch()
   _, batch_loss, log = \
@@ -50,6 +48,7 @@ while True:
 
   print('Iter %d, loss %g, timecost %g ms' % (i, batch_loss, interval))
   writer.add_summary(log, i)
+  i += 1
 
   if i % 500 == 0 and i > 1:
     d = sess.run(dmaps, feed_dict={inflow:img[0:1]})
@@ -61,4 +60,3 @@ while True:
     
     save_name = '%s.ckpt' % model_name
     saver.save(sess, model_path+save_name, global_step=i)
-    start_time = toc

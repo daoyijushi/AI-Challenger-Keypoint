@@ -234,7 +234,7 @@ def visualization(img, key_map, aff_map, save_name='vis.jpg'):
 def vis_dmap(dmap, save_name):
     dx = dmap[:,:,::2]
     dy = dmap[:,:,1::2]
-    d = np.square(dx) + np.square(dy)
+    d = np.sqrt(np.square(dx) + np.square(dy))
     d = np.max(d, axis=2)
     misc.imsave(save_name, d)
 
