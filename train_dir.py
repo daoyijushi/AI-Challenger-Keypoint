@@ -14,7 +14,7 @@ model_path = './model/' + model_name + '/'
 step_cnt = int(sys.argv[2])
 
 r = reader.DirReader('./data/train/', 'annotations.pkl', 32)
-l_rate = 1e-3
+l_rate = 1e-4 # 1e-3 -> 5e-4
 
 sess = tf.Session()
 

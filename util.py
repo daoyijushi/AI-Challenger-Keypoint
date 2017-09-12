@@ -236,12 +236,12 @@ def vis_dmap(dmap, save_name):
     d = np.max(d, axis=2)
     misc.imsave(save_name, d)
 
-def resize(tmp, anno, length):
-  h, w, _ = tmp.shape
+def resize(src, anno, length):
+  h, w, _ = src.shape
   anno = np.array(anno, dtype=np.float32)
   if h < w:
     rate = length / h
-    tmp = misc.imresize(tmp, (length, int(rate*w)))
+    tmp = misc.imresize(src, (length, int(rate*w)))
     anno[:, ::3] *= rate
     anno[:, 1::3] *= rate
     if tmp.shape[1] > length:
@@ -250,10 +250,10 @@ def resize(tmp, anno, length):
       tmp = tmp[:, left:right, :]
       anno[:, ::3] -= left
     else:
-      tmp = misc.imresize(tmp, (length, length))
+      tmp = misc.imresize(src, (length, length))
   else:
     rate = length / w
-    tmp = misc.imresize(tmp, (int(rate*h), length))
+    tmp = misc.imresize(src, (int(rate*h), length))
     anno[:, ::3] *= rate
     anno[:, 1::3] *= rate
     if tmp.shape[0] > length:
@@ -262,9 +262,8 @@ def resize(tmp, anno, length):
       tmp = tmp[top:bottom, :, :]
       anno[:, 1::3] -= top
     else:
-      tmp = misc.imresize(tmp, (length, length))
+      tmp = misc.imresize(src, (length, length))
   return tmp, anno.astype(np.int16)
-
 
 if __name__ == '__main__':
   test_key_hmap()
