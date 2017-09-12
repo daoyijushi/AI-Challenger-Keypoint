@@ -83,6 +83,34 @@ def get_kmap_from_dmap(dmap, limbs, channels=14):
   kmap /= cnt
   return kmap
 
+def resize(src, length):
+  h, w, _ = src.shape
+  left = 0
+  top = 0
+  if h < w:
+    rate = length / h
+    tmp = misc.imresize(src, (length, int(rate*w)))
+    if tmp.shape[1] > length:
+      left = np.random.randint(0, tmp.shape[1] - length)
+      right = left + length
+      tmp = tmp[:, left:right, :]
+    else:
+      tmp = misc.imresize(src, (length, length))
+  else:
+    rate = length / w
+    tmp = misc.imresize(src, (int(rate*h), length))
+    if tmp.shape[0] > length:
+      top = np.random.randint(0, tmp.shape[0] - length)
+      bottom = top + length
+      tmp = tmp[top:bottom, :, :]
+    else:
+      tmp = misc.imresize(src, (length, length))
+
+  return tmp, rate, left, top
+
+
+
+
 def explore(dmap, kmap, start, known, connections, r, limb_num=13, channels=14):
   '''
   start: the keypoint(s) from which we explore others, list
@@ -109,21 +137,23 @@ def explore(dmap, kmap, start, known, connections, r, limb_num=13, channels=14):
       w_slice = kmap[top:down, left:right, p1]
       
       for limb in connections[p]:
-
-
         p2, sign, c = limb
         k_slice = kmap[:,:,p2]
 
-        d_slice = None
+        d_slice_x = None
+        d_slice_y = None
         if sign == 1:
-          d_slice = dmap[:,:,c]
+          d_slice_x = dmap[top:down, left:right, c*2]
+          d_slice_y = dmap[top:down, left:right, c*2+1]
         else:
-          d_slice = dmap[:,:,c+limb_num*2]
+          d_slice_x = dmap[top:down, left:right, c*2+limb_num*2]
+          d_slice_y = dmap[top:down, left:right, c*2+limb_num*2+1]
 
+        vx = np.mean(d_slice_x * w_slice)
+        vy = np.mean(d_slice_y * w_slice)
+        v = (vx,vy)
 
-
-
-
+        p2_info = find_another(k_slice, start_pos, v, r)
 
   # explore(dmap, kmap, start, known, connections, channels)
 
@@ -261,7 +291,7 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
         aff_map[i, j, channel, :] += v
 
 # limbs supposed to be
-# ((13,14),(14,4),(14,1),(4,5),(5,6),(1,2),(2,3),(14,10),(10,11),(11,12),(14,7),(7,8),(8,9))
+# ((12,13),(13,3),(13,0),(3,4),(4,5),(0,1),(1,2),(13,9), (9,10),(10,11),(13,6),(6,7),(7,8))
 def get_aff_hmap(shape, annos, limbs):
   h, w, _ = shape
   aff_map = np.zeros((h, w, len(limbs), 2))
@@ -337,34 +367,7 @@ def vis_dmap(dmap, save_name):
     d = np.max(d, axis=2)
     misc.imsave(save_name, d)
 
-def resize(src, anno, length):
-  h, w, _ = src.shape
-  anno = np.array(anno, dtype=np.float32)
-  if h < w:
-    rate = length / h
-    tmp = misc.imresize(src, (length, int(rate*w)))
-    anno[:, ::3] *= rate
-    anno[:, 1::3] *= rate
-    if tmp.shape[1] > length:
-      left = np.random.randint(0, tmp.shape[1] - length)
-      right = left + length
-      tmp = tmp[:, left:right, :]
-      anno[:, ::3] -= left
-    else:
-      tmp = misc.imresize(src, (length, length))
-  else:
-    rate = length / w
-    tmp = misc.imresize(src, (int(rate*h), length))
-    anno[:, ::3] *= rate
-    anno[:, 1::3] *= rate
-    if tmp.shape[0] > length:
-      top = np.random.randint(0, tmp.shape[0] - length)
-      bottom = top + length
-      tmp = tmp[top:bottom, :, :]
-      anno[:, 1::3] -= top
-    else:
-      tmp = misc.imresize(src, (length, length))
-  return tmp, anno.astype(np.int16)
+
 
 if __name__ == '__main__':
   compute_connections()

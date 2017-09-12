@@ -90,7 +90,14 @@ class DirReader:
     direction_hmap = []
     for piece in data_batch:
       tmp = misc.imread(self.img_dir + piece['image_id'] + '.jpg')
-      tmp, annos = util.resize(tmp, list(piece['keypoint_annotations'].values()), self.length)
+      
+      tmp, rate, left, top = \
+        util.resize(tmp, self.length)
+      annos = np.array(list(piece['keypoint_annotations'].values()), dtype=np.float32)
+      annos[:, ::3] = annos[:, ::3] * rate - left
+      annos[:, 1::3] = annos[:, 1::3] * rate - top
+      annos = annos.astype(np.int16)
+
       img.append(tmp)
 
       tmp = misc.imresize(tmp, (self.short, self.short))
