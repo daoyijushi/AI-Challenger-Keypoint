@@ -158,8 +158,7 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
       for j in range(left, right):
         aff_map[i, j, channel, :] += v
 
-# limbs is the connection between keypoints
-# supposed to be
+# limbs supposed to be
 # ((13,14),(14,4),(14,1),(4,5),(5,6),(1,2),(2,3),(14,10),(10,11),(11,12),(14,7),(7,8),(8,9))
 def get_aff_hmap(shape, annos, limbs):
   h, w, _ = shape
@@ -230,13 +229,42 @@ def visualization(img, key_map, aff_map, save_name='vis.jpg'):
   img = cover_key_map(img, key_map)
   misc.imsave(save_name, img)
 
-
 def vis_dmap(dmap, save_name):
     dx = dmap[:,:,::2]
     dy = dmap[:,:,1::2]
     d = np.sqrt(np.square(dx) + np.square(dy))
     d = np.max(d, axis=2)
     misc.imsave(save_name, d)
+
+def resize(tmp, anno, length):
+  h, w, _ = tmp.shape
+  anno = np.array(anno, dtype=np.float32)
+  if h < w:
+    rate = length / h
+    tmp = misc.imresize(tmp, (length, int(rate*w)))
+    anno[:, ::3] *= rate
+    anno[:, 1::3] *= rate
+    if tmp.shape[1] > length:
+      left = np.random.randint(0, tmp.shape[1] - length)
+      right = left + length
+      tmp = tmp[:, left:right, :]
+      anno[:, ::3] -= left
+    else:
+      tmp = misc.imresize(tmp, (length, length))
+  else:
+    rate = length / w
+    tmp = misc.imresize(tmp, (int(rate*h), length))
+    anno[:, ::3] *= rate
+    anno[:, 1::3] *= rate
+    if tmp.shape[0] > length:
+      top = np.random.randint(0, tmp.shape[0] - length)
+      bottom = top + length
+      tmp = tmp[top:bottom, :, :]
+      anno[:, 1::3] -= top
+    else:
+      tmp = misc.imresize(tmp, (length, length))
+  return tmp, anno.astype(np.int16)
+
 
 if __name__ == '__main__':
   test_key_hmap()
