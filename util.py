@@ -4,6 +4,8 @@ from scipy import misc
 import json
 import pickle
 
+
+
 def json2pickle(fname):
   with open(fname, 'r') as f:
     data = json.load(f)
@@ -22,8 +24,88 @@ def normal_patch(l, s):
 
 def limbs():
   # 13 limbs
-  return ((13,14),(14,4),(14,1),(4,5),(5,6),(1,2),(2,3),(14,10), \
-    (10,11),(11,12),(14,7),(7,8),(8,9))
+  return ((12,13),(13,3),(13,0),(3,4),(4,5),(0,1),(1,2),(13,9), \
+    (9,10),(10,11),(13,6),(6,7),(7,8))
+
+def compute_connections():
+  # how are the keypoints connected and the direction
+  l = limbs()
+  co = []
+  for i in range(14):
+    connection = []
+    for limb in l:
+      if limb[0] == i:
+        connection.append((limb[1],1))
+      elif limb[1] == i:
+        connection.append((limb[0],-1))
+    co.append(connection)
+  print(co)
+
+def connections():
+  co = [
+    [(13, -1), (1, 1)], #0
+    [(0, -1), (2, 1)], #1
+    [(1, -1)], #2
+    [(13, -1), (4, 1)], #3
+    [(3, -1), (5, 1)], #4
+    [(4, -1)], #5
+    [(13, -1), (7, 1)], #6
+    [(6, -1), (8, 1)], #7
+    [(7, -1)], #8
+    [(13, -1), (10, 1)], #9
+    [(9, -1), (11, 1)], #10
+    [(10, -1)], #11
+    [(13, 1)], #12
+    [(12, -1), (3, 1), (0, 1), (9, 1), (6, 1)] #13
+  ]
+  return co
+
+def get_kmap(dmap, limbs, channels=14):
+  h, w, _ = dmap.shape
+  kmap = np.zeros((h,w,channels))
+  cnt = [0] * channels
+  for i,limb in enumerate(limbs):
+    start = limb[0]
+    end = limb[1]
+    cnt[start] += 1
+    cnt[end] += 1
+
+    # forward
+    dx = dmap[:,:,2*i]
+    dy = dmap[:,:,2*i+1]
+    kmap[:,:,start] += np.sqrt(np.square(dx)+np.square(dy))
+
+    # backward
+    dx = dmap[:,:,2*i+26]
+    dy = dmap[:,:,2*i+27]
+    kmap[:,:,end] += np.sqrt(np.square(dx)+np.square(dy))
+
+  kmap /= cnt
+  return kmap
+
+def explore(dmap, kmap, start, known, connections, channels=14):
+  '''
+  start: the keypoint(s) from which we explore others, list
+  known: the keypoint(s) we've already located, dic
+  connections: how are the keypoints connected and the direction, list
+  '''
+  if len(known == 14):
+    return
+  if len(start) == 0:
+    p = np.argmax(kmap).tolist()
+    x, y, c = p
+    start.append(c)
+    known[c] = (x,y)
+  else:
+    for p1 in start:
+      for limb in connections[p]:
+        p2, dire = limb
+        hmap = kmap[:,:,p2]
+
+
+  explore(dmap, kmap, start, known, connections, channels)
+
+
 
 def validate(x, y, v, h, w):
   if x < 0 or x >= w or y < 0 or y >= h or v == 3:
@@ -66,11 +148,11 @@ def get_dir_hmap(shape, annos, patch, limbs, r):
   cnt = [1e-8, 1e-8] * len(limbs)
   for human in annos:
     for channel, limb in enumerate(limbs):
-      num = (limb[0] - 1) * 3
+      num = limb[0] * 3
       x1 = human[num]
       y1 = human[num + 1]
       v1 = human[num + 2]
-      num = (limb[1] - 1) * 3
+      num = limb[1] * 3
       x2 = human[num]
       y2 = human[num + 1]
       v2 = human[num + 2]
@@ -105,12 +187,12 @@ def get_dir_hmap(shape, annos, patch, limbs, r):
 # add weights for direction map
 def weight_dir_hmap(kmap, dmap, dmap_re, limbs):
   for channel,limb in enumerate(limbs):
-    start = limb[0] - 1
+    start = limb[0]
     weight = kmap[:,:,start]
     dmap[:,:,channel*2] *= weight
     dmap[:,:,channel*2+1] *= weight
 
-    end = limb[1] - 1
+    end = limb[1]
     weight = kmap[:,:,end]
     dmap_re[:,:,channel*2] *= weight
     dmap_re[:,:,channel*2+1] *= weight
@@ -166,11 +248,11 @@ def get_aff_hmap(shape, annos, limbs):
   cnt = [1e-8] * len(limbs)
   for human in annos:
     for channel, limb in enumerate(limbs):
-      num = (limb[0] - 1) * 3
+      num = limb[0] * 3
       x1 = human[num]
       y1 = human[num + 1]
       v1 = human[num + 2]
-      num = (limb[1] - 1) * 3
+      num = limb[1] * 3
       x2 = human[num]
       y2 = human[num + 1]
       v2 = human[num + 2]
@@ -205,8 +287,7 @@ def test_aff_hmap():
   piece = data[1]
   img = misc.imread('./image/' + piece['image_id'] + '.jpg')
   annos = piece['keypoint_annotations'].values()
-  limbs = ((13,14),(14,4),(14,1),(4,5),(5,6),(1,2),(2,3),(14,10),(10,11),(11,12),(14,7),(7,8),(8,9))
-  aff_map = get_aff_hmap(img.shape, annos, limbs)
+  aff_map = get_aff_hmap(img.shape, annos, limbs())
   img = cover_aff_map(img, aff_map)
   misc.imsave('aff_map.jpg', img)
 
@@ -266,6 +347,18 @@ def resize(src, anno, length):
   return tmp, anno.astype(np.int16)
 
 if __name__ == '__main__':
-  test_key_hmap()
+  compute_connections()
+  # out = np.load('output.npy')
+  # print(out.shape)
+  # kmap = get_kmap(out, util.limbs())
+  # print(kmap.shape)
+  # with open('store.txt', 'w') as f:
+  #   content = np.round(kmap[:,:,0], 2).tolist()
+  #   for line in content:
+  #     for num in line:
+  #       f.write(str(num))
+  #       f.write(' ')
+  #     f.write('\n')
+
 
 
