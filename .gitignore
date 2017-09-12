@@ -11,3 +11,5 @@ fb2855f677ab289d3ad548809872c39d7a5ed14e.jpg
 __pycache__/
 model/
 *.zip
+keypoint_eval/
+val_anno.pkl
