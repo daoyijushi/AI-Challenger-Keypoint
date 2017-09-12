@@ -83,10 +83,8 @@ def get_kmap_from_dmap(dmap, limbs, channels=14):
   kmap /= cnt
   return kmap
 
-def resize(src, length):
+def resize(src, length, left=0, top=0):
   h, w, _ = src.shape
-  left = 0
-  top = 0
   if h < w:
     rate = length / h
     tmp = misc.imresize(src, (length, int(rate*w)))
@@ -95,7 +93,7 @@ def resize(src, length):
       right = left + length
       tmp = tmp[:, left:right, :]
     else:
-      tmp = misc.imresize(src, (length, length))
+      tmp = misc.imresize(tmp, (length, length))
   else:
     rate = length / w
     tmp = misc.imresize(src, (int(rate*h), length))
@@ -104,12 +102,54 @@ def resize(src, length):
       bottom = top + length
       tmp = tmp[top:bottom, :, :]
     else:
-      tmp = misc.imresize(src, (length, length))
+      tmp = misc.imresize(tmp, (length, length))
 
   return tmp, rate, left, top
 
-
-
+def multi_resize(src, length, inter_px):
+  h, w, _ = src.shape
+  rate = None
+  tmp = None
+  imgs = []
+  lefts = []
+  tops = []
+  if h < w:
+    rate = length / h
+    tmp = misc.imresize(src, (length, int(rate*w)))
+    if tmp.shape[1] > length:
+      for left in range(0, tmp.shape[1] - length, inter_px):
+        right = left + length
+        imgs.append(tmp[:, left:right, :])
+        lefts.append(left)
+        tops.append(0)
+      left = tmp.shape[1] - length
+      right = left + length
+      imgs.append(tmp[:, left:right, :])
+      lefts.append(left)
+      tops.append(0)
+    else:
+      imgs.append(misc.imresize(tmp, (length, length)))
+      lefts.append(0)
+      rights.append(0)
+  else:
+    rate = length / w
+    tmp = misc.imresize(src, (int(rate*h), length))
+    if tmp.shape[0] > length:
+      for top in range(0, tmp.shape[0] - length, inter_px):
+        bottom = top + length
+        imgs.append(tmp[top:bottom, :, :])
+        lefts.append(0)
+        tops.append(top)
+      top = tmp.shape[0] - length
+      bottom = top + length
+      imgs.append(tmp[top:bottom, :, :])
+      lefts.append(0)
+      tops.append(top)
+    else:
+      imgs.append(misc.imresize(tmp, (length, length)))
+      lefts.append(0)
+      rights.append(0)
+  return imgs, lefts, tops
 
 def explore(dmap, kmap, start, known, connections, r, limb_num=13, channels=14):
   '''
@@ -367,10 +407,14 @@ def vis_dmap(dmap, save_name):
     d = np.max(d, axis=2)
     misc.imsave(save_name, d)
 
-
-
 if __name__ == '__main__':
-  compute_connections()
+  src = misc.imread('./image/00a63555101c6a702afa83c9865e0296c3cafd6f.jpg')
+  imgs, lefts, tops = multi_resize(src, 368, 20)
+  for i,img in enumerate(imgs):
+    misc.imsave('crop%d.jpg' % i, img)
+  print(lefts)
+  print(tops)
+
   # out = np.load('output.npy')
   # print(out.shape)
   # kmap = get_kmap(out, util.limbs())
