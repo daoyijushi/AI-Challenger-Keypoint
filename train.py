@@ -18,7 +18,7 @@ l_rate = 1e-3
 
 sess = tf.Session()
 
-inflow, dmaps = network.dirmap()
+inflow, dmaps = network.v2()
 ref_dmap, loss = network.compute_single_loss(dmaps)
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 

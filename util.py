@@ -33,34 +33,34 @@ def compute_connections():
   co = []
   for i in range(14):
     connection = []
-    for limb in l:
+    for j,limb in enumerate(l):
       if limb[0] == i:
-        connection.append((limb[1],1))
+        connection.append((limb[1],1,j))
       elif limb[1] == i:
-        connection.append((limb[0],-1))
+        connection.append((limb[0],-1,j))
     co.append(connection)
   print(co)
 
 def connections():
   co = [
-    [(13, -1), (1, 1)], #0
-    [(0, -1), (2, 1)], #1
-    [(1, -1)], #2
-    [(13, -1), (4, 1)], #3
-    [(3, -1), (5, 1)], #4
-    [(4, -1)], #5
-    [(13, -1), (7, 1)], #6
-    [(6, -1), (8, 1)], #7
-    [(7, -1)], #8
-    [(13, -1), (10, 1)], #9
-    [(9, -1), (11, 1)], #10
-    [(10, -1)], #11
-    [(13, 1)], #12
-    [(12, -1), (3, 1), (0, 1), (9, 1), (6, 1)] #13
+    [(13, -1, 2), (1, 1, 5)], #0
+    [(0, -1, 5), (2, 1, 6)], #1
+    [(1, -1, 6)], #2
+    [(13, -1, 1), (4, 1, 3)], #3
+    [(3, -1, 3), (5, 1, 4)], #4
+    [(4, -1, 4)], #5
+    [(13, -1, 10), (7, 1, 11)], #6
+    [(6, -1, 11), (8, 1, 12)], #7
+    [(7, -1, 12)], #8
+    [(13, -1, 7), (10, 1, 8)], #9
+    [(9, -1, 8), (11, 1, 9)], #10
+    [(10, -1, 9)], #11
+    [(13, 1, 0)], #12
+    [(12, -1, 0), (3, 1, 1), (0, 1, 2), (9, 1, 7), (6, 1, 10)] #13
   ]
   return co
 
-def get_kmap(dmap, limbs, channels=14):
+def get_kmap_from_dmap(dmap, limbs, channels=14):
   h, w, _ = dmap.shape
   kmap = np.zeros((h,w,channels))
   cnt = [0] * channels
@@ -83,7 +83,7 @@ def get_kmap(dmap, limbs, channels=14):
   kmap /= cnt
   return kmap
 
-def explore(dmap, kmap, start, known, connections, channels=14):
+def explore(dmap, kmap, start, known, connections, r, limb_num=13, channels=14):
   '''
   start: the keypoint(s) from which we explore others, list
   known: the keypoint(s) we've already located, dic
@@ -97,15 +97,35 @@ def explore(dmap, kmap, start, known, connections, channels=14):
     start.append(c)
     known[c] = (x,y)
   else:
+    h, w, _ = dmap.shape
     for p1 in start:
+      p1_x, p1_y = known[p1]
+      
+      left = max(p1_x-r, 0)
+      right = min(p1_x+r, w)
+      top = max(p1_y-r, 0)
+      down = min(p1_y+r, h)
+
+      w_slice = kmap[top:down, left:right, p1]
+      
       for limb in connections[p]:
-        p2, dire = limb
-        hmap = kmap[:,:,p2]
 
 
-  explore(dmap, kmap, start, known, connections, channels)
+        p2, sign, c = limb
+        k_slice = kmap[:,:,p2]
+
+        d_slice = None
+        if sign == 1:
+          d_slice = dmap[:,:,c]
+        else:
+          d_slice = dmap[:,:,c+limb_num*2]
 
 
+
+
+
+
+  # explore(dmap, kmap, start, known, connections, channels)
 
 def validate(x, y, v, h, w):
   if x < 0 or x >= w or y < 0 or y >= h or v == 3:

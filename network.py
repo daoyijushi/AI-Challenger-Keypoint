@@ -112,6 +112,44 @@ def dirmap():
 
   return l0, dmaps
 
+def v2():
+  l0 = tf.placeholder(tf.float32, (None,368,368,3))
+
+  # feature extraction
+  l1 = c2(l0, 64, 'module_1')
+  p1 = layers.max_pool2d(l1, 2)
+
+  l2 = c2(p1, 128, 'module_2')
+  p2 = layers.max_pool2d(l2, 2)
+
+  l3 = c4(p2, (256,256,256,256), 'module_3')
+  p3 = layers.max_pool2d(l3, 2)
+
+  fmap = c4(p3, (512,512,256,256), 'module_4')
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  dmap_1 = layers.conv2d(l5_1, 52, 1) # 26*2 limbs
+
+  concat_1 = tf.concat((dmap_1, fmap), axis=3)
+
+  dmap_2 = c7(concat_1, 52, 'stage_2')
+  concat_2 = tf.concat((dmap_2, fmap), axis=3)
+
+  dmap_3 = c7(concat_2, 52, 'stage_3')
+  concat_3 = tf.concat((dmap_3, fmap), axis=3)
+
+  dmap_4 = c7(concat_3, 52, 'stage_4')
+  concat_4 = tf.concat((dmap_4, fmap), axis=3)
+
+  dmap_5 = c7(concat_4, 52, 'stage_5')
+  concat_5 = tf.concat((dmap_5, fmap), axis=3)
+
+  dmap_6 = c7(concat_5, 52, 'stage_6')
+
+  dmaps = [dmap_1, dmap_2, dmap_3, dmap_4, dmap_5, dmap_6]
+
+  return l0, dmaps
+
 def compute_single_loss(inflow):
   ref = tf.placeholder(tf.float32, inflow[0].shape)
   loss = tf.constant(0, dtype=tf.float32)
