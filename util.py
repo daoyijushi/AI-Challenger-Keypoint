@@ -6,6 +6,7 @@ import pickle
 
 
 
+
 def json2pickle(fname):
   with open(fname, 'r') as f:
     data = json.load(f)
@@ -15,14 +16,14 @@ def json2pickle(fname):
 def normal(x, y, sigma=4):
   return np.exp(-(x**2+y**2)/sigma)
 
-def normal_patch(l, s):
+def get_normal_patch(l, s):
   patch = np.zeros((l,l))
   for i in range(l):
     for j in range(l):
       patch[i, j] = normal(i-l/2, j-l/2, s)
   return patch
 
-def limbs():
+def get_limbs():
   # 13 limbs
   return ((12,13),(13,3),(13,0),(3,4),(4,5),(0,1),(1,2),(13,9), \
     (9,10),(10,11),(13,6),(6,7),(7,8))
@@ -59,6 +60,14 @@ def connections():
     [(12, -1, 0), (3, 1, 1), (0, 1, 2), (9, 1, 7), (6, 1, 10)] #13
   ]
   return co
+
+def grid(length):
+  a = np.arange(0, length, dtype=np.uint8).reshape((1,length))
+  b = np.arange(0, length, dtype=np.uint8).reshape((1,length))
+  for i in range(length-1):
+    b = np.concatenate((a,b), axis=0)
+  print(b)
+  return b
 
 def get_kmap_from_dmap(dmap, limbs, channels=14):
   h, w, _ = dmap.shape
@@ -151,21 +160,45 @@ def multi_resize(src, length, inter_px):
       rights.append(0)
   return imgs, lefts, tops
 
-def explore(dmap, kmap, start, known, connections, r, limb_num=13, channels=14):
+#grid: [[0,1,2,3,4,5,...],[0,1,2,3,4,5,...],...]
+def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid):
+  mod_v = v_x ** 2 + v_y ** 2
+
+  x_forward = start_x - grid
+  y_forward = start_y - grid.T
+  mod_forward = np.sqrt(np.square(diff_x) + np.sqrt(diff_y)) + 1e-8
+  cos_forward = (x_forward*v_x + y_forward*v_y) / mod_forward / mod_v
+
+  mod_backward = np.sqrt(np.square(d_slice_x) + np.square(d_slice_y)) + 1e-8
+  cos_backward = -(d_slice_x*vx + d_slice_y*vy) / mod_backward / mod_v
+
+  final_map = k_slice * cos_forward * cos_backward
+
+  y, x = np.argmax(k_slice)
+  return x, y, k_slice[y,x]
+
+def explore(dmap, kmap, start, known, connections, r, grid, limb_num=13, channels=14):
   '''
   start: the keypoint(s) from which we explore others, list
   known: the keypoint(s) we've already located, dic
   connections: how are the keypoints connected and the direction, list
   '''
-  if len(known == 14):
+  if len(known) == 14:
     return
   if len(start) == 0:
     p = np.argmax(kmap).tolist()
-    x, y, c = p
+    y, x, c = p
+
+    avg = np.mean(kmap[:,:,c])
+    if kmap[y,x,c] < avg:
+      return
+
     start.append(c)
     known[c] = (x,y)
+    explore(dmap, kmap, new_comer, known, connections, channels)
   else:
     h, w, _ = dmap.shape
+    new_comer = []
     for p1 in start:
       p1_x, p1_y = known[p1]
       
@@ -174,28 +207,95 @@ def explore(dmap, kmap, start, known, connections, r, limb_num=13, channels=14):
       top = max(p1_y-r, 0)
       down = min(p1_y+r, h)
 
-      w_slice = kmap[top:down, left:right, p1]
+      # w_slice = kmap[top:down, left:right, p1]
+      # w_slice /= np.max(w_slice)
       
-      for limb in connections[p]:
+      for limb in connections[p1]:
         p2, sign, c = limb
+
+        if p2 in known.keys():
+          break
+
         k_slice = kmap[:,:,p2]
 
         d_slice_x = None
         d_slice_y = None
+        d_slice_rev_x = None
+        d_slice_rev_y = None
+
         if sign == 1:
           d_slice_x = dmap[top:down, left:right, c*2]
           d_slice_y = dmap[top:down, left:right, c*2+1]
+          # find the dmap from p2 to p1
+          c_rev = None
+          for k in connections[p1]:
+            if p1 == k[0]:
+              c_rev = k[2]
+          d_slice_rev_x = dmap[:,:,c_rev*2+limb_num*2]
+          d_slice_rev_y = dmap[:,:,c_rev*2+limb_num*2+1]
         else:
           d_slice_x = dmap[top:down, left:right, c*2+limb_num*2]
           d_slice_y = dmap[top:down, left:right, c*2+limb_num*2+1]
+          # find the dmap from p2 to p1
+          c_rev = None
+          for k in connections[p1]:
+            if p1 == k[0]:
+              c_rev = k[2]
+          d_slice_rev_x = dmap[:,:,c_rev*2]
+          d_slice_rev_y = dmap[:,:,c_rev*2+1]
 
-        vx = np.mean(d_slice_x * w_slice)
-        vy = np.mean(d_slice_y * w_slice)
-        v = (vx,vy)
+        # vx = np.mean(d_slice_x * w_slice)
+        # vy = np.mean(d_slice_y * w_slice)
+        vx = np.mean(d_slice_x)
+        vy = np.mean(d_slice_y)
 
-        p2_info = find_another(k_slice, start_pos, v, r)
+        p2_x, p2_y, belief = find_another(k_slice,
+                                             d_slice_rev_x,
+                                             d_slice_rev_y,
+                                             start_x, start_y,
+                                             v_x, v_y, grid)
 
-  # explore(dmap, kmap, start, known, connections, channels)
+        if belief > np.mean(k_slice):
+          new_comer.append(p2)
+          known[p2] = (p2_x,p2_y)
+
+    explore(dmap, kmap, new_comer, known, connections, channels)
+
+def clean(kmap, annos, patch):
+  r = patch.shape // 2
+  for k,v in annos.items():
+    x, y = v
+    left = max(x-r, 0)
+    right = min(x+r, w)
+    top = max(y-r, 0)
+    down = min(y+r, h)
+    key_map[top:down, left:right, k] -= \
+      patch[r-(ky-top):r+(down-ky), r-(kx-left):r+(right-kx)]
+
+def rebuild(dmap, kmap, start, known, connections, r, grid, patch, limb_num=13, channels=14):
+  result = []
+  while True:
+    annos = {}
+    explore(dmap, kmap, [], annos, connections, 2, grid, limb_num, channels)
+    if len(annos) == 0:
+      break
+    clean(kmap, result, patch)
+  return result
+
+def format_annos(annos, store_dic):
+  num = len(store_dic) + 1
+  h = 'human%d' % num
+  l = []
+  for k in range(14):
+    if k in annos.keys():
+      l.append(annos[k][0])
+      l.append(annos[k][1])
+      l.append(1)
+    else:
+      l.append(0)
+      l.append(0)
+      l.append(3)
+  store_dic[h] = l
 
 def validate(x, y, v, h, w):
   if x < 0 or x >= w or y < 0 or y >= h or v == 3:
@@ -408,12 +508,13 @@ def vis_dmap(dmap, save_name):
     misc.imsave(save_name, d)
 
 if __name__ == '__main__':
-  src = misc.imread('./image/00a63555101c6a702afa83c9865e0296c3cafd6f.jpg')
-  imgs, lefts, tops = multi_resize(src, 368, 20)
-  for i,img in enumerate(imgs):
-    misc.imsave('crop%d.jpg' % i, img)
-  print(lefts)
-  print(tops)
+  grid(46)
+  # src = misc.imread('./image/00a63555101c6a702afa83c9865e0296c3cafd6f.jpg')
+  # imgs, lefts, tops = multi_resize(src, 368, 20)
+  # for i,img in enumerate(imgs):
+  #   misc.imsave('crop%d.jpg' % i, img)
+  # print(lefts)
+  # print(tops)
 
   # out = np.load('output.npy')
   # print(out.shape)

@@ -14,11 +14,11 @@ model_path = './model/' + model_name + '/'
 step_cnt = int(sys.argv[2])
 l_rate = float(sys.argv[3])
 
-r = reader.DirReader('./data/train/', 'annotations.pkl', 16)
+r = reader.DirReader('./data/train/', 'annotations.pkl', 32)
 
 sess = tf.Session()
 
-inflow, dmaps = network.v3()
+inflow, dmaps = network.v4()
 ref_dmap, loss = network.compute_single_loss(dmaps)
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 
@@ -52,7 +52,7 @@ while True:
   writer.add_summary(log, i)
   i += 1
 
-  if i % 1000 == 0 and i > 1:
+  if i % 500 == 0 and i > 1:
     d = sess.run(dmaps, feed_dict={inflow:img[0:1]})
     
     d = d[-1].reshape([46,46,52])

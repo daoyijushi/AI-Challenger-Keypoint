@@ -78,7 +78,7 @@ class DirReader:
   def next_batch(self):
     start = self.index
     end = self.index + self.batch_size
-    if end > self.volumn:
+    if end >= self.volumn:
       end = self.volumn
       self.index = 0
     else:
