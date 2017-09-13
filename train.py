@@ -12,13 +12,13 @@ model_name = sys.argv[1]
 model_path = './model/' + model_name + '/'
 
 step_cnt = int(sys.argv[2])
+l_rate = float(sys.argv[3])
 
-r = reader.DirReader('./data/train/', 'annotations.pkl', 32)
-l_rate = 1e-3
+r = reader.DirReader('./data/train/', 'annotations.pkl', 16)
 
 sess = tf.Session()
 
-inflow, dmaps = network.v2()
+inflow, dmaps = network.v3()
 ref_dmap, loss = network.compute_single_loss(dmaps)
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 

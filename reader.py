@@ -93,7 +93,7 @@ class DirReader:
       
       tmp, rate, left, top = \
         util.resize(tmp, self.length)
-      annos = np.array(list(piece['keypoint_annotations'].values()), dtype=np.float32)
+      annos = np.array(list(piece['keypoint_annotations'].values()), dtype=np.float16)
       annos[:, ::3] = annos[:, ::3] * rate - left
       annos[:, 1::3] = annos[:, 1::3] * rate - top
       annos = annos.astype(np.int16)
@@ -117,8 +117,8 @@ class DirReader:
     img = np.array(img, dtype=np.float32)
     img -= self.mean
     img /= self.var
-    keypoint_hmap = np.array(keypoint_hmap)
-    direction_hmap = np.array(direction_hmap)
+    keypoint_hmap = np.array(keypoint_hmap, dtype=np.float32)
+    direction_hmap = np.array(direction_hmap, dtype=np.float32)
     return img, keypoint_hmap, direction_hmap
 
 if __name__ == '__main__':
