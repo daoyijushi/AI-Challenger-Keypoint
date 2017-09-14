@@ -66,9 +66,9 @@ class DirReader:
     self.patch_l = pl
     self.patch_s = ps
     random.shuffle(self.data)
-    self.patch = util.normal_patch(self.patch_l, self.patch_s)
+    self.patch = util.get_patch(self.patch_l, self.patch_s)
     self.ones = np.ones((self.patch_l,self.patch_l,2))
-    self.limbs = util.limbs()
+    self.limbs = util.get_limbs()
     self.mean = np.array([122.35131039, 115.17054545, 107.60200075])
     self.var = np.array([35.77071304, 35.39201422, 37.7260754])
     np.random.seed(822)
@@ -78,7 +78,7 @@ class DirReader:
   def next_batch(self):
     start = self.index
     end = self.index + self.batch_size
-    if end >= self.volumn:
+    if end > self.volumn:
       end = self.volumn
       self.index = 0
     else:
@@ -102,6 +102,10 @@ class DirReader:
 
       tmp = misc.imresize(tmp, (self.short, self.short))
       annos = np.round(annos * self.short / self.length).astype(np.int8)
+      # rate = self.short / self.length
+      # annos[:, ::3] = annos[:, ::3] * rate
+      # annos[:, 1::3] = annos[:, 1::3] * rate
+      # annos = np.round(annos).astype(np.int8)
 
       kmap = util.get_key_hmap(\
         tmp.shape, annos, self.patch, self.patch_l//2)
@@ -122,13 +126,29 @@ class DirReader:
     return img, keypoint_hmap, direction_hmap
 
 if __name__ == '__main__':
-  r = DirReader('./image/', 'anno_sample.pkl', 1)
-  i, k, d = r.next_batch()
+  pass
+  # r = DirReader('./image/', 'anno_sample.pkl', 1)
+  # i, k, d = r.next_batch()
 
-  d = d[0]
-  util.vis_dmap(d, 'reader_dir_sample.jpg')
+  # k = k[0]
+  # d = d[0]
+  # i = i[0]
 
-  k = k[0]
-  k = np.max(k, axis=2)
-  misc.imsave('key.jpg', k)
+  # k = util.get_kmap_from_dmap(d, util.get_limbs())
+  # result = util.rebuild(d, k, util.get_connections(), 2, \
+  #   util.get_grid(46), r.patch)
+  # for human in result:
+  #   for i in range(14):
+  #     print(i, human[i*3], human[i*3+1], human[i*3+2])
+  # print(result)
+
+  # new_k = util.get_key_map_from_dmap()
+  # diff = np.max()
+
+  # d = d[0]
+  # util.vis_dmap(d, 'reader_dir_sample.jpg')
+
+  # k = k[0]
+  # k = np.max(k, axis=2)
+  # misc.imsave('key.jpg', k)
 

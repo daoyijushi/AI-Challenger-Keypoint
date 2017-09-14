@@ -13,3 +13,4 @@ model/
 *.zip
 keypoint_eval/
 val_anno.pkl
+*.pkl
