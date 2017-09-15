@@ -101,11 +101,12 @@ class DirReader:
       img.append(tmp)
 
       tmp = misc.imresize(tmp, (self.short, self.short))
-      annos = np.round(annos * self.short / self.length).astype(np.int8)
-      # rate = self.short / self.length
-      # annos[:, ::3] = annos[:, ::3] * rate
-      # annos[:, 1::3] = annos[:, 1::3] * rate
-      # annos = np.round(annos).astype(np.int8)
+      # annos = np.round(annos * self.short / self.length).astype(np.int8)
+      rate = self.short / self.length
+      annos[:, ::3] = annos[:, ::3] * rate
+      annos[:, 1::3] = annos[:, 1::3] * rate
+      annos = np.round(annos).astype(np.int8)
+      # print(annos)
 
       kmap = util.get_key_hmap(\
         tmp.shape, annos, self.patch, self.patch_l//2)
@@ -126,21 +127,22 @@ class DirReader:
     return img, keypoint_hmap, direction_hmap
 
 if __name__ == '__main__':
-  pass
-  # r = DirReader('./image/', 'anno_sample.pkl', 1)
-  # i, k, d = r.next_batch()
+  r = DirReader('./image/', 'anno_sample.pkl', 1)
+  i, k, d = r.next_batch()
 
-  # k = k[0]
-  # d = d[0]
-  # i = i[0]
+  k = k[0]
+  d = d[0]
+  i = i[0]
 
-  # k = util.get_kmap_from_dmap(d, util.get_limbs())
-  # result = util.rebuild(d, k, util.get_connections(), 2, \
-  #   util.get_grid(46), r.patch)
+  k = util.get_kmap_from_dmap(d, util.get_limbs())
+  result = util.rebuild(d, k, util.get_connections(), 2, \
+    util.get_grid(46), r.patch, 1)
   # for human in result:
   #   for i in range(14):
   #     print(i, human[i*3], human[i*3+1], human[i*3+2])
-  # print(result)
+  print(result)
+  final = util.format_annos(result, 'aaaaa')
+  print(final)
 
   # new_k = util.get_key_map_from_dmap()
   # diff = np.max()

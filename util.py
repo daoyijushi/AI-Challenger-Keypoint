@@ -158,7 +158,7 @@ def multi_resize(src, length, inter_px):
       imgs.append(misc.imresize(tmp, (length, length)))
       lefts.append(0)
       rights.append(0)
-  return imgs, lefts, tops
+  return imgs, lefts, tops, rate
 
 #grid: [[0,1,2,3,4,5,...],[0,1,2,3,4,5,...],...]
 def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid):
@@ -275,31 +275,26 @@ def clean(kmap, annos, patch):
     kmap[kmap < 0] = 0
     # kmap[top:down, left:right, k] = 0
 
-def rebuild(dmap, kmap, connections, r, grid, patch, limb_num=13, channels=14):
+def rebuild(dmap, kmap, connections, r, grid, patch, rate, limb_num=13, channels=14):
   # each explore find one person's keypoints
   # result contains each person's annotations in the image
   result = []
   stop_thres = np.percentile(kmap, 99, axis=(0,1))
-  # print(stop_thres)
   while True:
     annos = {}
     explore(dmap, kmap, [], annos, connections, 2, grid, stop_thres, limb_num, channels)
     if len(annos) == 0:
       break
-    # vis_kmap(kmap, 'before.jpg')
     clean(kmap, annos, patch)
-    # vis_kmap(kmap, 'after.jpg')
-    # print(np.max(kmap))
-    # break
-    result.append(annos2list(annos))
+    result.append(annos2list(annos, rate))
   return result
 
-def annos2list(annos):
+def annos2list(annos, rate):
   l = []
   for k in range(14):
     if k in annos.keys():
-      l.append(annos[k][0])
-      l.append(annos[k][1])
+      l.append(int(round(annos[k][0] / rate)))
+      l.append(int(round(annos[k][1] / rate)))
       l.append(1)
     else:
       l.append(0)
@@ -307,25 +302,39 @@ def annos2list(annos):
       l.append(0)
   return l
 
-def format_annos(annos, store_dic):
-  num = len(store_dic) + 1
-  h = 'human%d' % num
-  l = []
-  for k in range(14):
-    if k in annos.keys():
-      l.append(annos[k][0])
-      l.append(annos[k][1])
-      l.append(1)
-    else:
-      l.append(0)
-      l.append(0)
-      l.append(0)
-  store_dic[h] = l
+def format_annos(annos, img_id):
+  ret = {}
+  ret['image_id'] = img_id
+  ret['keypoint_annotations'] = {}
+  h = 'human%d'
+  for i,human in enumerate(annos):
+    ret['keypoint_annotations'][h%(i+1)] = human
+  return ret
 
 def validate(x, y, v, h, w):
   if x < 0 or x >= w or y < 0 or y >= h or v == 3:
     return False
   return True
+
+# img2dmap: the rescale ratio between img and dmap
+# for example, img is 368x368, and dmap is 46x46
+# then img2dmap is 8 (368/46=8)
+def concat_dmaps(batch_dmaps, lefts, tops, img2dmap):
+  length = batch_dmaps.shape[1]
+  depth = batch_dmaps.shape[3]
+  w = lefts[-1] // img2dmap + length
+  h = tops[-1] // img2dmap + length
+  dmap = np.zeros((h,w,depth))
+  cnt = np.zeros((h,w,depth))
+  for i in range(len(lefts)):
+    left = lefts[i] // img2dmap
+    right = left + length
+    top = tops[i] // img2dmap
+    bottom = top + length
+    dmap[top:bottom, left:right, :] += batch_dmaps[i, :, :, :]
+    cnt[top:bottom, left:right, :] += 1
+  dmap /= cnt
+  return dmap
 
 # get the keypoint ground truth
 def get_key_hmap(shape, annos, patch, r, channels=14):
@@ -534,12 +543,26 @@ def vis_dmap(dmap, save_name):
   vis_kmap(k, save_name)
 
 if __name__ == '__main__':
-  dmap = np.load('output.npy')
-  kmap = get_kmap_from_dmap(dmap, get_limbs())
-  result = rebuild(dmap, kmap, get_connections(), 2, get_grid(46), get_patch(10,4))
-  for human in result:
-    for i in range(14):
-      print(i, human[i*3], human[i*3+1], human[i*3+2])
+  src = misc.imread('./image/00a63555101c6a702afa83c9865e0296c3cafd6f.jpg')
+  imgs, lefts, tops, rate = multi_resize(src, 368, 24)
+  num = len(imgs)
+  batch_dmaps = np.random.rand(num,46,46,52)
+  big = concat_dmaps(batch_dmaps, lefts, tops, 8)
+  print(big.shape)
+  # with open('anno_sample.pkl', 'rb') as f:
+  #   a = pickle.load(f)
+  # print(a[0])
+  # dmap = np.load('output.npy')
+  # kmap = get_kmap_from_dmap(dmap, get_limbs())
+  # annos = rebuild(dmap, kmap, get_connections(), 2, get_grid(46), get_patch(10,4), 0.06)
+  # final = format_annos(annos, 'test')
+  # # with open('inf_out.json', 'w') as f:
+  # j = json.dumps(final)
+  # print(j)
+
+  # for human in result:
+  #   for i in range(14):
+  #     print(i, human[i*3], human[i*3+1], human[i*3+2])
   # vis_dmap(dmap, 'util_vis.jpg')
 
   # src = misc.imread('./image/00a63555101c6a702afa83c9865e0296c3cafd6f.jpg')
