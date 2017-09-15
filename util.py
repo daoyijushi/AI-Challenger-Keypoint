@@ -67,13 +67,13 @@ def get_connections():
 # if w, it should be [[0,1,...],[0,1,...]]
 def get_grid(h, w):
 
-  a = np.arrange(0, h, dtype=np.int16).reshape((h, 1))
-  grid_h = np.arrange(0, h, dtype=np.int16).reshape((h, 1))
+  a = np.arange(h, dtype=np.int16).reshape((h, 1))
+  grid_h = np.arange(h, dtype=np.int16).reshape((h, 1))
   for i in range(w - 1):
     grid_h = np.concatenate((grid_h,a), axis=1)
 
-  a = np.arrange(0, w, dtype=np.int16).reshape((1,w))
-  grid_w = np.arrange(0, w, dtype=np.int16).reshape((1,w))
+  a = np.arange(w, dtype=np.int16).reshape((1,w))
+  grid_w = np.arange(w, dtype=np.int16).reshape((1,w))
   for i in range(h - 1):
     grid_w = np.concatenate((grid_w,a), axis=0)
 
@@ -149,7 +149,7 @@ def multi_resize(src, length, inter_px):
     else:
       imgs.append(misc.imresize(tmp, (length, length)))
       lefts.append(0)
-      rights.append(0)
+      tops.append(0)
   else:
     rate = length / w
     tmp = misc.imresize(src, (int(rate*h), length))
@@ -167,16 +167,19 @@ def multi_resize(src, length, inter_px):
     else:
       imgs.append(misc.imresize(tmp, (length, length)))
       lefts.append(0)
-      rights.append(0)
+      tops.append(0)
+  imgs = np.array(imgs, dtype=np.float32)
+  #lefts = np.array(lefts, dtype=np.uint8)
+  #tops = np.array(tops, dtype=np.uint8)
   return imgs, lefts, tops, rate
 
 #grid: [[0,1,2,3,4,5,...],[0,1,2,3,4,5,...],...]
 def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid_h, grid_w):
-  mod_v = v_x ** 2 + v_y ** 2
+  mod_v = v_x ** 2 + v_y ** 2 + 1e-4
 
   x_forward = (start_x - grid_w).astype(np.float32)
   y_forward = (start_y - grid_h).astype(np.float32)
-  mod_forward = np.sqrt(np.square(x_forward) + np.sqrt(y_forward)) + 1e-4
+  mod_forward = np.sqrt(np.square(x_forward) + np.square(y_forward)) + 1e-4
   
   cos_forward = (x_forward*v_x + y_forward*v_y) / (mod_forward * mod_v)
 
@@ -270,7 +273,7 @@ def explore(dmap, kmap, start, known, connections, r, grid_h, grid_w, stop_thres
 
   # print('from', start, 'find', new_comer)
   # print('known:', known.keys())
-  explore(dmap, kmap, new_comer, known, connections, r, grid, stop_thres, limb_num, channels)
+  explore(dmap, kmap, new_comer, known, connections, r, grid_h, grid_w, stop_thres, limb_num, channels)
 
 def clean(kmap, annos, patch):
   r = patch.shape[0] // 2
@@ -336,15 +339,16 @@ def concat_dmaps(batch_dmaps, lefts, tops, img2dmap):
   w = lefts[-1] // img2dmap + length
   h = tops[-1] // img2dmap + length
   dmap = np.zeros((h,w,depth))
-  cnt = np.zeros((h,w,depth))
+  # cnt = np.zeros((h,w,depth))
   for i in range(len(lefts)):
     left = lefts[i] // img2dmap
     right = left + length
     top = tops[i] // img2dmap
     bottom = top + length
-    dmap[top:bottom, left:right, :] += batch_dmaps[i, :, :, :]
-    cnt[top:bottom, left:right, :] += 1
-  dmap /= cnt
+    dmap[top:bottom, left:right, :] = np.maximum(dmap[top:bottom, left:right, :], batch_dmaps[i,:,:,:])
+    # dmap[top:bottom, left:right, :] += batch_dmaps[i, :, :, :]
+    # cnt[top:bottom, left:right, :] += 1
+  # dmap /= cnt
   return dmap
 
 # get the keypoint ground truth
