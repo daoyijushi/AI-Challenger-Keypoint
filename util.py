@@ -62,12 +62,22 @@ def get_connections():
   return co
 
 # the grid should be the same size of kmap
-def get_grid(length):
-  a = np.arange(0, length, dtype=np.uint8).reshape((1,length))
-  b = np.arange(0, length, dtype=np.uint8).reshape((1,length))
-  for i in range(length-1):
-    b = np.concatenate((a,b), axis=0)
-  return b
+# coord = 'h' or 'w'
+# if h, it should be [[0,0,...],[1,1,...]]
+# if w, it should be [[0,1,...],[0,1,...]]
+def get_grid(h, w):
+
+  a = np.arrange(0, h, dtype=np.int16).reshape((h, 1))
+  grid_h = np.arrange(0, h, dtype=np.int16).reshape((h, 1))
+  for i in range(w - 1):
+    grid_h = np.concatenate((grid_h,a), axis=1)
+
+  a = np.arrange(0, w, dtype=np.int16).reshape((1,w))
+  grid_w = np.arrange(0, w, dtype=np.int16).reshape((1,w))
+  for i in range(h - 1):
+    grid_w = np.concatenate((grid_w,a), axis=0)
+
+  return grid_h, grid_w
 
 def get_kmap_from_dmap(dmap, limbs, channels=14):
   h, w, _ = dmap.shape
@@ -161,11 +171,11 @@ def multi_resize(src, length, inter_px):
   return imgs, lefts, tops, rate
 
 #grid: [[0,1,2,3,4,5,...],[0,1,2,3,4,5,...],...]
-def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid):
+def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid_h, grid_w):
   mod_v = v_x ** 2 + v_y ** 2
 
-  x_forward = (start_x - grid).astype(np.float32)
-  y_forward = (start_y - grid.T).astype(np.float32)
+  x_forward = (start_x - grid_w).astype(np.float32)
+  y_forward = (start_y - grid_h).astype(np.float32)
   mod_forward = np.sqrt(np.square(x_forward) + np.sqrt(y_forward)) + 1e-4
   
   cos_forward = (x_forward*v_x + y_forward*v_y) / (mod_forward * mod_v)
@@ -178,7 +188,7 @@ def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid
   y, x = np.unravel_index(np.argmax(k_slice), k_slice.shape)
   return x, y, k_slice[y,x]
 
-def explore(dmap, kmap, start, known, connections, r, grid, stop_thres, limb_num=13, channels=14):
+def explore(dmap, kmap, start, known, connections, r, grid_h, grid_w, stop_thres, limb_num=13, channels=14):
   '''
   start: the keypoint(s) from which we explore others, list
   known: the keypoint(s) we've already located, dic
@@ -251,7 +261,8 @@ def explore(dmap, kmap, start, known, connections, r, grid, stop_thres, limb_num
                                           d_slice_rev_x,
                                           d_slice_rev_y,
                                           p1_x, p1_y,
-                                          v_x, v_y, grid)
+                                          v_x, v_y,
+                                          grid_h, grid_w)
 
         # if belief > np.mean(k_slice):
         new_comer.append(p2)
@@ -275,14 +286,14 @@ def clean(kmap, annos, patch):
     kmap[kmap < 0] = 0
     # kmap[top:down, left:right, k] = 0
 
-def rebuild(dmap, kmap, connections, r, grid, patch, rate, limb_num=13, channels=14):
+def rebuild(dmap, kmap, connections, r, grid_h, grid_w, patch, rate, limb_num=13, channels=14):
   # each explore find one person's keypoints
   # result contains each person's annotations in the image
   result = []
   stop_thres = np.percentile(kmap, 99, axis=(0,1))
   while True:
     annos = {}
-    explore(dmap, kmap, [], annos, connections, 2, grid, stop_thres, limb_num, channels)
+    explore(dmap, kmap, [], annos, connections, 2, grid_h, grid_w, stop_thres, limb_num, channels)
     if len(annos) == 0:
       break
     clean(kmap, annos, patch)

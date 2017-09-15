@@ -14,3 +14,4 @@ model/
 keypoint_eval/
 val_anno.pkl
 *.pkl
+*.json
