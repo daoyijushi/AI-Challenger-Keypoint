@@ -4,9 +4,6 @@ from scipy import misc
 import json
 import pickle
 
-
-
-
 def json2pickle(fname):
   with open(fname, 'r') as f:
     data = json.load(f)
@@ -175,20 +172,29 @@ def multi_resize(src, length, inter_px):
 
 #grid: [[0,1,2,3,4,5,...],[0,1,2,3,4,5,...],...]
 def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid_h, grid_w):
-  mod_v = v_x ** 2 + v_y ** 2 + 1e-4
+  mod_v = np.sqrt(v_x**2+v_y**2) + 1e-4
 
-  x_forward = (start_x - grid_w).astype(np.float32)
-  y_forward = (start_y - grid_h).astype(np.float32)
+  x_forward = (grid_w - start_x).astype(np.float32)
+  y_forward = (grid_h - start_y).astype(np.float32)
   mod_forward = np.sqrt(np.square(x_forward) + np.square(y_forward)) + 1e-4
   
   cos_forward = (x_forward*v_x + y_forward*v_y) / (mod_forward * mod_v)
 
   mod_backward = np.sqrt(np.square(d_slice_x) + np.square(d_slice_y)).astype(np.float32) + 1e-4
-  cos_backward = -(d_slice_x*v_x + d_slice_y*v_y) / (mod_backward * mod_v)
+  cos_backward = (d_slice_x*v_x + d_slice_y*v_y) / (mod_backward * mod_v)
 
-  final_map = k_slice * cos_forward * cos_backward
+  final_map = np.maximum(k_slice*cos_forward, k_slice*cos_backward)
 
-  y, x = np.unravel_index(np.argmax(k_slice), k_slice.shape)
+  y, x = np.unravel_index(np.argmax(final_map), final_map.shape)
+
+  # if y == 30 and x == 36:
+  #   print(start_x, start_y)
+  #   print(1, final_map[y,x], final_map[9,42])
+  #   print(2, k_slice[y,x], k_slice[9,42])
+  #   print(3, cos_forward[y,x], cos_forward[9,42])
+  #   print(4, cos_backward[y,x], cos_backward[9,42])
+
+
   return x, y, k_slice[y,x]
 
 def explore(dmap, kmap, start, known, connections, r, grid_h, grid_w, stop_thres, limb_num=13, channels=14):
@@ -257,8 +263,13 @@ def explore(dmap, kmap, start, known, connections, r, grid_h, grid_w, stop_thres
 
         # vx = np.mean(d_slice_x * w_slice)
         # vy = np.mean(d_slice_y * w_slice)
+
+
         v_x = np.mean(d_slice_x)
         v_y = np.mean(d_slice_y)
+
+        # if p1 == 12 and p2 == 13:
+        #   print(v_x, v_y)
 
         p2_x, p2_y, belief = find_another(k_slice,
                                           d_slice_rev_x,
@@ -272,6 +283,8 @@ def explore(dmap, kmap, start, known, connections, r, grid_h, grid_w, stop_thres
         known[p2] = (p2_x,p2_y)
 
   # print('from', start, 'find', new_comer)
+  # for p in new_comer:
+  #   print(p, np.round(np.array(known[p])*16.7826))
   # print('known:', known.keys())
   explore(dmap, kmap, new_comer, known, connections, r, grid_h, grid_w, stop_thres, limb_num, channels)
 
@@ -286,7 +299,7 @@ def clean(kmap, annos, patch):
     down = min(y+r, h)
     kmap[top:down, left:right, k] -= \
       patch[r-(y-top):r+(down-y), r-(x-left):r+(right-x)]
-    kmap[kmap < 0] = 0
+    kmap = np.maximum(kmap, 0)
     # kmap[top:down, left:right, k] = 0
 
 def rebuild(dmap, kmap, connections, r, grid_h, grid_w, patch, rate, limb_num=13, channels=14):
@@ -558,20 +571,24 @@ def vis_dmap(dmap, save_name):
   vis_kmap(k, save_name)
 
 if __name__ == '__main__':
-  src = misc.imread('./image/00a63555101c6a702afa83c9865e0296c3cafd6f.jpg')
-  imgs, lefts, tops, rate = multi_resize(src, 368, 24)
-  num = len(imgs)
-  batch_dmaps = np.random.rand(num,46,46,52)
-  big = concat_dmaps(batch_dmaps, lefts, tops, 8)
-  print(big.shape)
+  pass
+  # src = misc.imread('./image/00a63555101c6a702afa83c9865e0296c3cafd6f.jpg')
+  # imgs, lefts, tops, rate = multi_resize(src, 368, 24)
+  # num = len(imgs)
+  # batch_dmaps = np.random.rand(num,46,46,52)
+  # big = concat_dmaps(batch_dmaps, lefts, tops, 8)
+  # print(big.shape)
   # with open('anno_sample.pkl', 'rb') as f:
   #   a = pickle.load(f)
   # print(a[0])
-  # dmap = np.load('output.npy')
+
+  # dmap = np.load('dmap.npy')
+  # h, w, _ = dmap.shape
+  # grid_h, grid_w = get_grid(h, w)
   # kmap = get_kmap_from_dmap(dmap, get_limbs())
-  # annos = rebuild(dmap, kmap, get_connections(), 2, get_grid(46), get_patch(10,4), 0.06)
+  # annos = rebuild(dmap, kmap, get_connections(), 2, grid_h, grid_w, get_patch(10, 4), 1)
   # final = format_annos(annos, 'test')
-  # # with open('inf_out.json', 'w') as f:
+  # with open('inf_out.json', 'w') as f:
   # j = json.dumps(final)
   # print(j)
 

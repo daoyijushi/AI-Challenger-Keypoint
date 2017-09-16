@@ -13,8 +13,18 @@ model_path = './model/' + model_name + '/'
 
 step_cnt = int(sys.argv[2])
 l_rate = float(sys.argv[3])
+reader = sys.argv[4]
 
-r = reader.DirReader('./data/train/', 'annotations_new.pkl', 16)
+r = None
+if reader == 'dir':
+  r = reader.DirReader('./data/train/', 'annotations_new.pkl', 16)
+elif reader == 'forward':
+  r = reader.ForwardReader('./data/train/', 'annotations_new.pkl', 16)
+elif reader == 'backward':
+  r = reader.BackwardReader('./data/train/', 'annotations_new.pkl', 16)
+else:
+  print('Error reader.')
+  exit(0)
 
 sess = tf.Session()
 
@@ -22,7 +32,9 @@ inflow, dmaps = network.v7()
 ref_dmap, loss = network.compute_single_loss(dmaps)
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 
-tf.summary.scalar('loss',loss)
+tf.summary.scalar('loss', loss)
+tf.summary.scalar('learning rate', l_rate)
+
 merged = tf.summary.merge_all()
 writer = tf.summary.FileWriter(model_path, sess.graph)
 
