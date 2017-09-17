@@ -88,8 +88,10 @@ class DirReader:
     img = []
     keypoint_hmap = []
     direction_hmap = []
+    names = []
     for piece in data_batch:
       tmp = misc.imread(self.img_dir + piece['image_id'] + '.jpg')
+      names.append(piece['image_id'])
       
       tmp, rate, left, top = \
         util.resize(tmp, self.length)
@@ -124,7 +126,7 @@ class DirReader:
     img /= self.var
     keypoint_hmap = np.array(keypoint_hmap, dtype=np.float32)
     direction_hmap = np.array(direction_hmap, dtype=np.float32)
-    return img, keypoint_hmap, direction_hmap
+    return img, keypoint_hmap, direction_hmap, names
 
 class ForwardReader:
 

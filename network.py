@@ -293,7 +293,7 @@ def v8():
   fmap = c4(p3, (512,512,256,256), 'module_4')
 
   l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
-  dmap_1 = layers.conv2d(l5_1, 52, 1, activation_fn=None) # 26*2 limbs
+  dmap_1 = layers.conv2d(l5_1, 26, 1, activation_fn=None) # 26*2 limbs
 
   concat_1 = tf.concat((dmap_1, fmap), axis=3)
 

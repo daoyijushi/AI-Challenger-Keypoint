@@ -79,24 +79,27 @@ def get_grid(h, w):
 def get_kmap_from_dmap(dmap, limbs, channels=14):
   h, w, _ = dmap.shape
   kmap = np.zeros((h,w,channels))
-  cnt = [0] * channels
+  # cnt = [0] * channels
   for i,limb in enumerate(limbs):
     start = limb[0]
     end = limb[1]
-    cnt[start] += 1
-    cnt[end] += 1
+    # cnt[start] += 1
+    # cnt[end] += 1
 
     # forward
     dx = dmap[:,:,2*i]
     dy = dmap[:,:,2*i+1]
-    kmap[:,:,start] += np.sqrt(np.square(dx)+np.square(dy))
+    # kmap[:,:,start] += np.sqrt(np.square(dx)+np.square(dy))
+    kmap[:,:,start] = np.maximum(kmap[:,:,start], np.sqrt(np.square(dx)+np.square(dy)))
 
-    # backward
-    dx = dmap[:,:,2*i+26]
-    dy = dmap[:,:,2*i+27]
-    kmap[:,:,end] += np.sqrt(np.square(dx)+np.square(dy))
+    if dmap.shape[2] > 26:
+      # backward
+      dx = dmap[:,:,2*i+26]
+      dy = dmap[:,:,2*i+27]
+      # kmap[:,:,end] += np.sqrt(np.square(dx)+np.square(dy))
+      kmap[:,:,end] = np.maximum(kmap[:,:,end], np.sqrt(np.square(dx)+np.square(dy)))
 
-  kmap /= cnt
+  # kmap /= cnt
   return kmap
 
 def resize(src, length, left=0, top=0):
@@ -172,18 +175,25 @@ def multi_resize(src, length, inter_px):
 
 #grid: [[0,1,2,3,4,5,...],[0,1,2,3,4,5,...],...]
 def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid_h, grid_w):
-  mod_v = np.sqrt(v_x**2+v_y**2) + 1e-4
+  mod_v = np.sqrt(v_x**2+v_y**2) + 1e-8
 
   x_forward = (grid_w - start_x).astype(np.float32)
   y_forward = (grid_h - start_y).astype(np.float32)
-  mod_forward = np.sqrt(np.square(x_forward) + np.square(y_forward)) + 1e-4
+  mod_forward = np.sqrt(np.square(x_forward) + np.square(y_forward)) + 1e-8
   
   cos_forward = (x_forward*v_x + y_forward*v_y) / (mod_forward * mod_v)
 
-  mod_backward = np.sqrt(np.square(d_slice_x) + np.square(d_slice_y)).astype(np.float32) + 1e-4
+  mod_backward = np.sqrt(np.square(d_slice_x) + np.square(d_slice_y)).astype(np.float32) + 1e-8
   cos_backward = (d_slice_x*v_x + d_slice_y*v_y) / (mod_backward * mod_v)
 
-  final_map = np.maximum(k_slice*cos_forward, k_slice*cos_backward)
+
+  final_map = k_slice * np.exp(cos_forward) * np.exp(cos_backward)
+
+  # vis_slice(final_map, 'final_map.jpg', (772,950))
+  # vis_slice(cos_forward, 'cos_forward.jpg', (772,950))
+  # vis_slice(cos_backward, 'cos_backward.jpg', (772,950))
+  # vis_slice(k_slice, 'k_slice.jpg', (772,950))
+  # input()
 
   y, x = np.unravel_index(np.argmax(final_map), final_map.shape)
 
@@ -196,6 +206,11 @@ def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid
 
 
   return x, y, k_slice[y,x]
+
+def vis_slice(s, save_name, size):
+  vis_s = np.round(s * 255)
+  vis_s = misc.imresize(vis_s, size)
+  misc.imsave(save_name, vis_s)
 
 def explore(dmap, kmap, start, known, connections, r, grid_h, grid_w, stop_thres, limb_num=13, channels=14):
   '''
@@ -270,7 +285,7 @@ def explore(dmap, kmap, start, known, connections, r, grid_h, grid_w, stop_thres
 
         # if p1 == 12 and p2 == 13:
         #   print(v_x, v_y)
-
+        # print('find another:', p2)
         p2_x, p2_y, belief = find_another(k_slice,
                                           d_slice_rev_x,
                                           d_slice_rev_y,
@@ -288,32 +303,96 @@ def explore(dmap, kmap, start, known, connections, r, grid_h, grid_w, stop_thres
   # print('known:', known.keys())
   explore(dmap, kmap, new_comer, known, connections, r, grid_h, grid_w, stop_thres, limb_num, channels)
 
-def clean(kmap, annos, patch):
-  r = patch.shape[0] // 2
-  h, w, _ = kmap.shape
-  for k, v in annos.items():
-    x, y = v
-    left = max(x-r, 0)
-    right = min(x+r, w)
-    top = max(y-r, 0)
-    down = min(y+r, h)
-    kmap[top:down, left:right, k] -= \
-      patch[r-(y-top):r+(down-y), r-(x-left):r+(right-x)]
-    kmap = np.maximum(kmap, 0)
-    # kmap[top:down, left:right, k] = 0
+def get_square_patch(x, y, w, h, r):
+  left = max(x-r, 0)
+  right = min(x+r, w)
+  top = max(y-r, 0)
+  down = min(y+r, h)
+  return left, right, top, down
 
-def rebuild(dmap, kmap, connections, r, grid_h, grid_w, patch, rate, limb_num=13, channels=14):
+def clean(dmap, annos, patch, connections):
+  pass
+  # h, w, _ = dmap.shape
+  # r = patch.shape[0] // 2
+  # for start,choices in enumerate(connections):
+  #   for keypoint in choices:
+  #     # print(keypoint)
+  #     end, sign, channel = keypoint
+  #     if sign == -1: # only calculate once
+  #       continue
+  #     start_x, start_y = annos[start]
+  #     end_x, end_y = annos[end]
+
+  #     v_x = end_x - start_x
+  #     v_y = end_y - start_y
+  #     mod_v = np.sqrt(v_x**2 + v_y**2) + 1e-8
+  #     v_x /= mod_v
+  #     v_y /= mod_v
+
+  #     weighted_x = v_x * patch
+  #     weighted_y = v_y * patch
+
+  #     # forward
+  #     left, right, top, down = get_square_patch(start_x, start_y, h, w, r)
+  #     # dmap[top:down, left:right, channel*2] = 0 
+  #     # dmap[top:down, left:right, channel*2+1] = 0
+  #     # dmap[top:down, left:right, channel*2] -= v_x
+  #     # dmap[top:down, left:right, channel*2+1] -= v_y
+  #     dmap[top:down, left:right, channel*2] += weighted_x[r-(start_y-top):r+(down-start_y), r-(start_x-left):r+(right-start_x)]
+  #     dmap[top:down, left:right, channel*2+1] += weighted_x[r-(start_y-top):r+(down-start_y), r-(start_x-left):r+(right-start_x)]
+
+  #     # backward
+  #     left, right, top, down = get_square_patch(end_x, end_y, h, w, r)
+  #     # dmap[top:down, left:right, channel*2+26] = 0
+  #     # dmap[top:down, left:right, channel*2+1+26] = 0
+  #     # dmap[top:down, left:right, channel*2+26] += v_x
+  #     # dmap[top:down, left:right, channel*2+1+26] += v_y
+  #     dmap[top:down, left:right, channel*2+26] -= weighted_x[r-(end_y-top):r+(down-end_y), r-(end_x-left):r+(right-end_x)]
+  #     dmap[top:down, left:right, channel*2+1+26] -= weighted_x[r-(end_y-top):r+(down-end_y), r-(end_x-left):r+(right-end_x)]
+
+  # r = patch.shape[0] // 2
+  # h, w, _ = kmap.shape
+  # for k, v in annos.items():
+  #   x, y = v
+  #   left = max(x-r, 0)
+  #   right = min(x+r, w)
+  #   top = max(y-r, 0)
+  #   down = min(y+r, h)
+
+  #   # print('removing', k, 'at', v)
+  #   # print(left, top, right, down)
+
+  #   kmap[top:down, left:right, k] -= \
+  #     patch[r-(y-top):r+(down-y), r-(x-left):r+(right-x)]
+  
+  # dmap = np.maximum(dmap, 0)
+
+def rebuild(dmap, kmap, connections, r, grid_h, grid_w, patch, rate, limbs, channels=14):
   # each explore find one person's keypoints
   # result contains each person's annotations in the image
   result = []
   stop_thres = np.percentile(kmap, 99, axis=(0,1))
+  limb_num = len(limbs)
   while True:
     annos = {}
     explore(dmap, kmap, [], annos, connections, 2, grid_h, grid_w, stop_thres, limb_num, channels)
     if len(annos) == 0:
       break
-    clean(kmap, annos, patch)
+    # vis_kmap(kmap, 'kmap_before.jpg')
+    clean(dmap, annos, patch, connections)
+    kmap = get_kmap_from_dmap(dmap, limbs)
+    # vis_kmap(kmap, 'kmap_after.jpg')
+    
+    # src = misc.imread('ffa97d027dfc2f2fc62692a035535579c5be74e0.jpg')
+    # rev_kmap = get_key_hmap(dmap.shape, [annos2list(annos, 1)], get_patch(10,4), 5)
+    # vis_kmap(rev_kmap, 'kmap_extract.jpg')
+    # cover_key_map(src, rev_kmap)
+    # misc.imsave('vis_anno.jpg', src)
+    
+    # print('clean')
+    # input()
     result.append(annos2list(annos, rate))
+    # break
   return result
 
 def annos2list(annos, rate):
@@ -522,7 +601,6 @@ def cover_key_map(img, key_map):
   mask = (key_map != 0)
   img[mask] = 0
   img[:,:,0] += key_map
-  return img
 
 def cover_aff_map(img, aff_map):
   aff_map = np.sum(aff_map, axis=2) / 14
@@ -563,7 +641,8 @@ def visualization(img, key_map, aff_map, save_name='vis.jpg'):
   misc.imsave(save_name, img)
 
 def vis_kmap(kmap, save_name):
-  k = np.round(np.max(kmap, axis=2) * 256)
+  k = np.round(np.max(kmap, axis=2) * 255).astype(np.uint8)
+  k = np.minimum(k, 255)
   misc.imsave(save_name, k)
 
 def vis_dmap(dmap, save_name):
