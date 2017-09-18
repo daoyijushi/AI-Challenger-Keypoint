@@ -16,6 +16,24 @@ def c4(inflow, filters, name):
     l4 = layers.conv2d(l3, f4, 3)
   return l4
 
+def c4c(inflow, filters, name):
+  f1, f2, f3, f4, f5 = filters
+  with tf.variable_scope(name):
+    l1 = layers.conv2d(inflow, f1, 3)
+    l2 = layers.conv2d(l1, f2, 3)
+    l3 = layers.conv2d(l2, f3, 3)
+    l4 = layers.conv2d(l3, f4, 3)
+    l5 = layers.conv2d(l4, f5, 3, 2)
+  return l5
+
+def c2c(inflow, filters, name):
+  f1, f2, f3 = filters
+  with tf.variable_scope(name):
+    l1 = layers.conv2d(inflow, f1, 3)
+    l2 = layers.conv2d(l1, f2, 3)
+    l3 = layers.conv2d(l2, f3, 3, 2)
+  return l3
+
 def c5(inflow, outsize, name, filters=128):
   with tf.variable_scope(name):
     l1 = layers.conv2d(inflow, filters, 7)
@@ -312,6 +330,52 @@ def v8():
   dmap_6 = c5(concat_5, 26, 'stage_6')
 
   dmaps = [dmap_1, dmap_2, dmap_3, dmap_4, dmap_5, dmap_6]
+
+  return l0, dmaps
+
+def v9():
+  l0 = tf.placeholder(tf.float32, (None,368,368,3))
+
+  # feature extraction
+  l1 = c4c(l0, (64,64,64,64,64), 'module_1')
+
+  l2 = c4c(l1, (128,128,128,128,128), 'module_2')
+
+  l3 = c4c(l2, (256,256,256,256,256), 'module_3')
+
+  fmap = c4(l3, (512,512,256,256), 'module_4')
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  dmap_1 = layers.conv2d(l5_1, 52, 1, activation_fn=None) # 26*2 limbs
+
+  concat_1 = tf.concat((dmap_1, fmap), axis=3)
+
+  dmap_2 = c5(concat_1, 52, 'stage_2')
+  concat_2 = tf.concat((dmap_2, fmap), axis=3)
+
+  dmap_3 = c5(concat_2, 52, 'stage_3')
+  concat_3 = tf.concat((dmap_3, fmap), axis=3)
+
+  dmap_4 = c5(concat_3, 52, 'stage_4')
+  concat_4 = tf.concat((dmap_4, fmap), axis=3)
+
+  dmap_5 = c5(concat_4, 52, 'stage_5')
+  concat_5 = tf.concat((dmap_5, fmap), axis=3)
+
+  dmap_6 = c5(concat_5, 52, 'stage_6')
+  concat_6 = tf.concat((dmap_6, fmap), axis=3)
+
+  dmap_tiny = layers.conv2d_transpose(concat_6, 52, 9, 2)
+  fmap_tiny = layers.conv2d_transpose(fmap, 256, 3, 2)
+  concat_tiny = tf.concat((dmap_tiny, fmap_tiny), axis=3)
+
+  dmap_mid = layers.conv2d_transpose(concat_tiny, 52, 9, 2)
+  fmap_mid = layers.conv2d_transpose(fmap_tiny, 256, 3, 2)
+  concat_mid = tf.concat((dmap_mid, fmap_mid), axis=3)
+
+  dmap_large = layers.conv2d_transpose(concat_mid, 52, 9, 2)
+
+  dmaps = [dmap_1, dmap_2, dmap_3, dmap_4, dmap_5, dmap_6, dmap_tiny, dmap_mid, dmap_large]
 
   return l0, dmaps
 

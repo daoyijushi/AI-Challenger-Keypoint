@@ -445,7 +445,7 @@ def concat_dmaps(batch_dmaps, lefts, tops, img2dmap):
 
 # get the keypoint ground truth
 def get_key_hmap(shape, annos, patch, r, channels=14):
-  y, x, _ = shape
+  y, x = shape[0], shape[1]
   key_map = np.zeros((y, x, channels))
   for keypoints in annos:
     for i in range(channels):
@@ -469,10 +469,17 @@ def get_key_hmap(shape, annos, patch, r, channels=14):
             key_map[h, w, i] = max(key_map[h, w, i], patch[r+h-ky, r+w-kx])
   return key_map
 
+def rescale_annos(annos, rate):
+  a = annos.astype(np.float32)
+  a[:, ::3] = a[:, ::3] * rate
+  a[:, 1::3] = a[:, 1::3] * rate
+  a = np.round(a).astype(np.int16)
+  return a
+
 # get the limb direction
 # the patch should be np.ones
 def get_dir_hmap(shape, annos, patch, limbs, r):
-  y, x, _ = shape
+  y, x = shape[0], shape[1]
   dir_map = np.zeros((y, x, len(limbs) * 2))
   dir_map_re = np.zeros((y, x, len(limbs * 2)))
 

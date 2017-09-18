@@ -128,6 +128,105 @@ class DirReader:
     direction_hmap = np.array(direction_hmap, dtype=np.float32)
     return img, keypoint_hmap, direction_hmap, names
 
+class MultiReader:
+  def __init__(self, img_dir, anno_path, batch_size, pl=10, ps=4):
+    self.img_dir = img_dir
+
+    with open(anno_path, 'rb') as f:
+      self.data = pickle.load(f)
+    random.shuffle(self.data)
+
+    self.batch_size = batch_size
+    self.index = 0
+    self.volumn = len(self.data)
+
+    self.micro = 46
+    self.tiny = 92
+    self.mid = 184
+    self.large = 368
+
+    self.patch_l = pl
+    self.patch_s = ps
+    self.patch = util.get_patch(self.patch_l, self.patch_s)
+
+    self.ones = np.ones((self.patch_l,self.patch_l,2))
+    self.limbs = util.get_limbs()
+    self.mean = np.array([122.35131039, 115.17054545, 107.60200075])
+    self.var = np.array([35.77071304, 35.39201422, 37.7260754])
+
+    np.random.seed(822)
+    
+    print('DirReader initialized. Data volumn %d, batch size %d.' \
+      % (self.volumn, self.batch_size))
+
+  def append_dmap(self, annos, container, length):
+    k = util.get_key_hmap((length, length), annos, self.patch, self.patch_l//2)
+    tmp, tmp_re = util.get_dir_hmap((length, length), annos, self.ones, self.limbs, self.patch_l//2)
+    d = util.weight_dir_hmap(k, tmp, tmp_re, self.limbs)
+    container.append(d)
+
+  def next_batch(self):
+    start = self.index
+    end = self.index + self.batch_size
+    if end >= self.volumn:
+      end = self.volumn
+      self.index = 0
+    else:
+      self.index = end
+
+    data_batch = self.data[start:end]
+    imgs = []
+    dmaps_micro = []
+    dmaps_tiny = []
+    dmaps_mid = []
+    dmaps_large = []
+    names = []
+
+    for piece in data_batch:
+      tmp = misc.imread(self.img_dir + piece['image_id'] + '.jpg')
+      names.append(piece['image_id'])
+      
+      # resize to 368x368
+      tmp, rate, left, top = \
+        util.resize(tmp, self.large)
+      imgs.append(tmp)
+
+
+      annos = np.array(list(piece['keypoint_annotations'].values()), dtype=np.float16)
+
+      annos[:, ::3] = annos[:, ::3] * rate - left
+      annos[:, 1::3] = annos[:, 1::3] * rate - top
+      annos = annos.astype(np.int16)
+      self.append_dmap(annos, dmaps_large, self.large)
+
+      annos = annos.astype(np.float32)
+      annos[:, ::3] = annos[:, ::3] * 0.5
+      annos[:, 1::3] = annos[:, 1::3] * 0.5
+      annos = np.round(annos).astype(np.int16)
+      self.append_dmap(annos, dmaps_mid, self.mid)
+
+      annos = annos.astype(np.float32)
+      annos[:, ::3] = annos[:, ::3] * 0.5
+      annos[:, 1::3] = annos[:, 1::3] * 0.5
+      annos = np.round(annos).astype(np.int16)
+      self.append_dmap(annos, dmaps_tiny, self.tiny)
+
+      annos = annos.astype(np.float32)
+      annos[:, ::3] = annos[:, ::3] * 0.5
+      annos[:, 1::3] = annos[:, 1::3] * 0.5
+      annos = np.round(annos).astype(np.int16)
+      self.append_dmap(annos, dmaps_micro, self.micro)
+
+
+    imgs = np.array(imgs, dtype=np.float32)
+    imgs -= self.mean
+    imgs /= self.var
+    dmaps_micro = np.array(dmaps_micro)
+    dmaps_tiny = np.array(dmaps_tiny)
+    dmaps_mid = np.array(dmaps_mid)
+    dmaps_large = np.array(dmaps_large)
+    return imgs, dmaps_micro, dmaps_tiny, dmaps_mid, dmaps_large, names
+
 class ForwardReader:
 
   def __init__(self, img_dir, anno_path, batch_size, pl=10, ps=4, l1=368, l2=46):
