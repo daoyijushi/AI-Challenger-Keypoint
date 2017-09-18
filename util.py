@@ -558,9 +558,10 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
     step_y = -1
 
   dis = np.sqrt(diff_x ** 2 + diff_y ** 2)
-  v = np.array([diff_x / dis, diff_y / dis])
+  v_x = np.array(diff_x / dis)
+  v_y = np.array(diff_y / dis)
 
-  h, w, _, _ = aff_map.shape
+  h, w, _ = aff_map.shape
   if abs(diff_x) > abs(diff_y):
     rate = diff_y / diff_x
     for i in range(x1, x2, step_x):
@@ -568,7 +569,8 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
       top = max(mid - r, 0)
       down = min(mid + r, h)
       for j in range(top, down):
-        aff_map[j, i, channel, :] += v
+        aff_map[j, i, channel*2] += v_x / (2 ** abs(j-mid))
+        aff_map[j, i, channel*2+1] += v_y / (2 ** abs(j-mid))
   else:
     rate = diff_x / diff_y
     for i in range(y1, y2, step_y):
@@ -576,14 +578,16 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
       left = max(mid - r, 0)
       right = min(mid + r, w)
       for j in range(left, right):
-        aff_map[i, j, channel, :] += v
+        aff_map[i, j, channel*2] += v_x / (2 ** abs(j-mid))
+        aff_map[i, j, channel*2+1] += v_y / (2 ** abs(j-mid))
+
 
 # limbs supposed to be
 # ((12,13),(13,3),(13,0),(3,4),(4,5),(0,1),(1,2),(13,9), (9,10),(10,11),(13,6),(6,7),(7,8))
 def get_aff_hmap(shape, annos, limbs):
   h, w, _ = shape
-  aff_map = np.zeros((h, w, len(limbs), 2))
-  cnt = [1e-8] * len(limbs)
+  aff_map = np.zeros((h, w, len(limbs)*2), dtype=np.float32)
+  cnt = [1e-8] * len(limbs) * 2
   for human in annos:
     for channel, limb in enumerate(limbs):
       num = limb[0] * 3
@@ -596,27 +600,32 @@ def get_aff_hmap(shape, annos, limbs):
       v2 = human[num + 2]
       if validate(x1, y1, v1, h, w) and validate(x2, y2, v2, h, w):
         draw_limb(aff_map, x1, y1, x2, y2, channel)
-        cnt[channel] += 1
-  aff_map /= (np.array(cnt).reshape(len(limbs),1))
-  aff_map = aff_map.reshape((h, w, len(limbs) * 2))
+        cnt[channel*2] += 1
+        cnt[channel*2+1] += 1
+
+  aff_map /= (np.array(cnt).reshape(len(limbs)*2))
   return aff_map
 
 def cover_key_map(img, key_map):
-  key_map = np.amax(key_map, axis=2)
-  key_map *= 256
-  key_map = np.round(key_map).astype(np.uint8)
-  mask = (key_map != 0)
+  tmp = np.amax(key_map, axis=2)
+  tmp *= 255
+  tmp = np.round(tmp).astype(np.uint8)
+  tmp = np.minimum(tmp, 255)
+  mask = (tmp > 1e-3)
   img[mask] = 0
-  img[:,:,0] += key_map
+  img[:,:,0] = tmp
 
 def cover_aff_map(img, aff_map):
-  aff_map = np.sum(aff_map, axis=2) / 14
-  aff_map *= 256
-  aff_map = np.round(np.abs(aff_map)).astype(np.uint8)
-  mask = (aff_map != 0)
+  # print(aff_map.shape)
+  x = aff_map[:,:,::2]
+  y = aff_map[:,:,1::2]
+  tmp = np.round(np.sqrt(np.square(x) + np.square(y))*255).astype(np.uint8)
+  # print(tmp.shape)
+  tmp = np.max(tmp, axis=2)
+  tmp = np.minimum(tmp, 255)
+  mask = (tmp > 1e-3)
   img[mask] = 0
-  img[:,:,0] += aff_map
-  return img
+  img[:,:,0] = tmp
 
 def test_aff_hmap():
   with open('anno_sample.pickle', 'rb') as f:
@@ -643,8 +652,8 @@ def test_key_hmap():
   misc.imsave('key_map.jpg', key_map)
 
 def visualization(img, key_map, aff_map, save_name='vis.jpg'):
-  img = cover_aff_map(img, aff_map)
-  img = cover_key_map(img, key_map)
+  cover_aff_map(img, aff_map)
+  cover_key_map(img, key_map)
   misc.imsave(save_name, img)
 
 def vis_kmap(kmap, save_name):

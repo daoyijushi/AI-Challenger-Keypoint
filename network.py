@@ -43,13 +43,13 @@ def c5(inflow, outsize, name, filters=128):
     l5 = layers.conv2d(l4, outsize, 1, activation_fn=None)
   return l5
 
-def stage(inflow, name, amap_out):
+def stage(inflow, name):
   kmap = c5(inflow, 14, name + '_1')
-  amap = c5(inflow, amap_out, name + '_2')
+  amap = c5(inflow, 26, name + '_2')
   return kmap, amap
 
-def vanilla(amap_out):
-  l0 = tf.placeholder(tf.float32, (None,368,368,3))
+def vanilla():
+  l0 = tf.placeholder(tf.float32, (None,None,None,3))
 
   # feature extraction
   l1 = c2(l0, 64, 'module_1')
@@ -67,26 +67,26 @@ def vanilla(amap_out):
   kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
 
   l5_2 = c4(fmap, (128,128,128,512), 'stage_1_2')
-  amap_1 = layers.conv2d(l5_2, amap_out, 1) # 13 limbs
+  amap_1 = layers.conv2d(l5_2, 26, 1, activation_fn=None) # 13 limbs
 
   concat_1 = tf.concat((kmap_1, amap_1, fmap), axis=3)
 
-  kmap_2, amap_2 = stage(concat_1, 'stage_2', amap_out)
+  kmap_2, amap_2 = stage(concat_1, 'stage_2')
   concat_2 = tf.concat((kmap_2, amap_2, fmap), axis=3)
 
-  kmap_3, amap_3 = stage(concat_2, 'stage_3', amap_out)
+  kmap_3, amap_3 = stage(concat_2, 'stage_3')
   concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
 
-  # kmap_4, amap_4 = stage(concat_3, 'stage_4')
-  # concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
+  kmap_4, amap_4 = stage(concat_3, 'stage_4')
+  concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
 
-  # kmap_5, amap_5 = stage(concat_4, 'stage_5')
-  # concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
+  kmap_5, amap_5 = stage(concat_4, 'stage_5')
+  concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
 
-  kmap_6, amap_6 = stage(concat_3, 'stage_6', amap_out)
+  kmap_6, amap_6 = stage(concat_5, 'stage_6')
 
-  kmaps = [kmap_1, kmap_2, kmap_3, kmap_6]
-  amaps = [amap_1, amap_2, amap_3, amap_6]
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
+  amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
 
   return l0, kmaps, amaps
 
@@ -390,8 +390,8 @@ def compute_loss(kmaps, amaps, ratio=0.5):
   ref_kmap = tf.placeholder(tf.float32, kmaps[0].shape)
   ref_amap = tf.placeholder(tf.float32, amaps[0].shape)
 
-  k_loss = tf.zeros([1])
-  a_loss = tf.zeros([1])
+  k_loss = tf.constant(0, dtype=tf.float32)
+  a_loss = tf.constant(0, dtype=tf.float32)
   for m in kmaps:
     k_loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref_kmap), axis=(1,2,3)))
   for m in amaps:
