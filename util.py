@@ -483,7 +483,8 @@ def get_dir_hmap(shape, annos, patch, limbs, r):
   dir_map = np.zeros((y, x, len(limbs) * 2))
   dir_map_re = np.zeros((y, x, len(limbs * 2)))
 
-  cnt = [1e-8, 1e-8] * len(limbs)
+  # cnt = np.ones((y, x, len(limbs)*2)) * 1e-8
+
   for human in annos:
     for channel, limb in enumerate(limbs):
       num = limb[0] * 3
@@ -500,8 +501,6 @@ def get_dir_hmap(shape, annos, patch, limbs, r):
         dis = np.sqrt(diff_x ** 2 + diff_y ** 2)
         if dis != 0:
           v = np.array([diff_x / dis, diff_y / dis])
-          cnt[channel * 2] += 1
-          cnt[channel * 2 + 1] += 1
 
           left = max(x1-r, 0)
           right = min(x1+r, x)
@@ -510,7 +509,6 @@ def get_dir_hmap(shape, annos, patch, limbs, r):
           dir_map[top:down, left:right, channel*2:(channel*2+2)] += \
             (patch[r-(y1-top):r+(down-y1), r-(x1-left):r+(right-x1), :] * v)
 
-
           left = max(x2-r, 0)
           right = min(x2+r, x)
           top = max(y2-r, 0)
@@ -518,8 +516,10 @@ def get_dir_hmap(shape, annos, patch, limbs, r):
           dir_map_re[top:down, left:right, channel*2:(channel*2+2)] -= \
             (patch[r-(y2-top):r+(down-y2), r-(x2-left):r+(right-x2), :] * v)
 
-  dir_map /= (np.array(cnt).reshape(len(limbs)*2))
-  dir_map_re /= (np.array(cnt).reshape(len(limbs)*2))
+          # cnt[top:down, left:right, channel*2:(channel*2+2)] += 1
+
+  # dir_map /= cnt
+  # dir_map_re /= cnt
   return dir_map, dir_map_re
 
 # add weights for direction map
@@ -580,7 +580,6 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
       for j in range(left, right):
         aff_map[i, j, channel*2] += v_x / (2 ** abs(j-mid))
         aff_map[i, j, channel*2+1] += v_y / (2 ** abs(j-mid))
-
 
 # limbs supposed to be
 # ((12,13),(13,3),(13,0),(3,4),(4,5),(0,1),(1,2),(13,9), (9,10),(10,11),(13,6),(6,7),(7,8))
