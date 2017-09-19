@@ -12,12 +12,18 @@ model_name = sys.argv[1]
 model_path = './model/' + model_name + '/'
 
 l_rate = float(sys.argv[2])
-r = reader.DirReader('./data/train/', 'annotations_new.pkl', 16)
+r = reader.MultiReader('./data/train/', 'annotations_new.pkl', 8)
 
 sess = tf.Session()
 
-inflow, dmaps = network.v10()
-ref_dmap, loss = network.compute_single_loss(dmaps)
+inflow, dmaps = network.v9()
+
+ref_micro, loss_micro = network.compute_single_loss(dmaps[0:6])
+ref_tiny, loss_tiny = network.compute_single_loss(dmaps[6:7])
+ref_mid, loss_mid = network.compute_single_loss(dmaps[7:8])
+ref_large, loss_large = network.compute_single_loss(dmaps[8:9])
+
+loss = loss_micro + loss_tiny + loss_mid + loss_large
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 
 tf.summary.scalar('loss', loss)
@@ -38,12 +44,20 @@ if os.path.exists(model_path):
   if ckpt:
     saver.restore(sess, ckpt.model_checkpoint_path)
 
+
 while True:
   tic = time.time()
-  img, _, dmap, names = r.next_batch()
+  img, dmaps_micro, dmaps_tiny, dmaps_mid, dmaps_large, names = r.next_batch()
+  fd = {
+    inflow: img, 
+    ref_micro: dmaps_micro,
+    ref_tiny: dmaps_tiny,
+    ref_mid: dmaps_mid,
+    ref_large: dmaps_large
+  }
 
   _, batch_loss, step_cnt, log = \
-    sess.run([train_step, loss, one_step_op, merged], feed_dict={inflow:img, ref_dmap:dmap})
+    sess.run([train_step, loss, one_step_op, merged], feed_dict=fd)
 
   toc = time.time()
   interval = (toc - tic) * 1000
@@ -56,12 +70,12 @@ while True:
     saver.save(sess, model_path+save_name, global_step=step_cnt)
 
     d = sess.run(dmaps, feed_dict={inflow:img[0:1]})
-    d = d[-1].reshape([46,46,52])
-    util.vis_dmap(d, 'pred_%d.jpg' % step_cnt)
-    util.vis_dmap(dmap[0], 'truth_%d.jpg' % step_cnt)
+    d = d[-1].reshape([368,368,52])
+    util.vis_dmap(d, 'res_%d.jpg' % step_cnt)
+    util.vis_dmap(dmaps_large[0], 'truth_%d.jpg' % step_cnt)
     misc.imsave('src_%d.jpg' % step_cnt, img[0])
     with open('train_log.txt', 'a') as f:
-      f.write(str(step_cnt))
+      f.write(str(int(step_cnt)))
       f.write(' ')
       f.write(names[0])
       f.write('\n')
