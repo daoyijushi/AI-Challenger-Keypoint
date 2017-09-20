@@ -65,6 +65,17 @@ def c7t(inflow, outsize, name, filters=128):
     l7 = layers.conv2d(l6, outsize, 1, activation_fn=tf.tanh)
   return l7
 
+def c7n(inflow, outsize, name, filters=128):
+  with tf.variable_scope(name):
+    l1 = layers.conv2d(inflow, filters, 7, activation_fn=None)
+    l2 = layers.conv2d(l1, filters, 7, activation_fn=None)
+    l3 = layers.conv2d(l2, filters, 7, activation_fn=None)
+    l4 = layers.conv2d(l3, filters, 7, activation_fn=None)
+    l5 = layers.conv2d(l4, filters, 7, activation_fn=None)
+    l6 = layers.conv2d(l5, filters, 1, activation_fn=None)
+    l7 = layers.conv2d(l6, outsize, 1, activation_fn=None)
+  return l7
+
 def stage(inflow, name):
   kmap = c5(inflow, 14, name + '_1')
   amap = c5(inflow, 26, name + '_2')
@@ -437,8 +448,8 @@ def v10():
 
   return l0, dmaps
 
-# all use signoid in dmap
-def v12():
+# all use tanh in dmap
+def v13():
   l0 = tf.placeholder(tf.float32, (None,None,None,3))
 
   # feature extraction
@@ -455,19 +466,55 @@ def v12():
 
   concat_1 = tf.concat((dmap_1, fmap), axis=3)
 
-  dmap_2 = c7s(concat_1, 52, 'stage_2')
+  dmap_2 = c7t(concat_1, 52, 'stage_2')
   concat_2 = tf.concat((dmap_2, fmap), axis=3)
 
-  dmap_3 = c7s(concat_2, 52, 'stage_3')
+  dmap_3 = c7t(concat_2, 52, 'stage_3')
   concat_3 = tf.concat((dmap_3, fmap), axis=3)
 
-  dmap_4 = c7s(concat_3, 52, 'stage_4')
+  dmap_4 = c7t(concat_3, 52, 'stage_4')
   concat_4 = tf.concat((dmap_4, fmap), axis=3)
 
-  dmap_5 = c7s(concat_4, 52, 'stage_5')
+  dmap_5 = c7t(concat_4, 52, 'stage_5')
   concat_5 = tf.concat((dmap_5, fmap), axis=3)
 
-  dmap_6 = c7s(concat_5, 52, 'stage_6')
+  dmap_6 = c7t(concat_5, 52, 'stage_6')
+
+  dmaps = [dmap_1, dmap_2, dmap_3, dmap_4, dmap_5, dmap_6]
+
+  return l0, dmaps
+
+# all use None in dmap
+def v14():
+  l0 = tf.placeholder(tf.float32, (None,None,None,3))
+
+  # feature extraction
+  l1 = c2c(l0, (64,64,64), 'module_1')
+
+  l2 = c2c(l1, (128,128,128), 'module_2')
+
+  l3 = c4c(l2, (256,256,256,256,256), 'module_3')
+
+  fmap = c4(l3, (512,512,256,256), 'module_4')
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  dmap_1 = layers.conv2d(l5_1, 52, 1, activation_fn=tf.tanh) # 26*2 limbs
+
+  concat_1 = tf.concat((dmap_1, fmap), axis=3)
+
+  dmap_2 = c7n(concat_1, 52, 'stage_2')
+  concat_2 = tf.concat((dmap_2, fmap), axis=3)
+
+  dmap_3 = c7n(concat_2, 52, 'stage_3')
+  concat_3 = tf.concat((dmap_3, fmap), axis=3)
+
+  dmap_4 = c7n(concat_3, 52, 'stage_4')
+  concat_4 = tf.concat((dmap_4, fmap), axis=3)
+
+  dmap_5 = c7n(concat_4, 52, 'stage_5')
+  concat_5 = tf.concat((dmap_5, fmap), axis=3)
+
+  dmap_6 = c7n(concat_5, 52, 'stage_6')
 
   dmaps = [dmap_1, dmap_2, dmap_3, dmap_4, dmap_5, dmap_6]
 

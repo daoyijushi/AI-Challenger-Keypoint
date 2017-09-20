@@ -27,7 +27,7 @@ def get_limbs():
 
 def compute_connections():
   # how are the keypoints connected and the direction
-  l = limbs()
+  l = get_limbs()
   co = []
   for i in range(14):
     connection = []
@@ -350,20 +350,20 @@ def clean(dmap, annos, patch, connections):
   #     dmap[top:down, left:right, channel*2+26] -= weighted_x[r-(end_y-top):r+(down-end_y), r-(end_x-left):r+(right-end_x)]
   #     dmap[top:down, left:right, channel*2+1+26] -= weighted_x[r-(end_y-top):r+(down-end_y), r-(end_x-left):r+(right-end_x)]
 
-  # r = patch.shape[0] // 2
-  # h, w, _ = kmap.shape
-  # for k, v in annos.items():
-  #   x, y = v
-  #   left = max(x-r, 0)
-  #   right = min(x+r, w)
-  #   top = max(y-r, 0)
-  #   down = min(y+r, h)
+  r = patch.shape[0] // 2
+  h, w, _ = kmap.shape
+  for k, v in annos.items():
+    x, y = v
+    left = max(x-r, 0)
+    right = min(x+r, w)
+    top = max(y-r, 0)
+    down = min(y+r, h)
 
-  #   # print('removing', k, 'at', v)
-  #   # print(left, top, right, down)
+    # print('removing', k, 'at', v)
+    # print(left, top, right, down)
 
-  #   kmap[top:down, left:right, k] -= \
-  #     patch[r-(y-top):r+(down-y), r-(x-left):r+(right-x)]
+    kmap[top:down, left:right, k] -= \
+      patch[r-(y-top):r+(down-y), r-(x-left):r+(right-x)]
   
   # dmap = np.maximum(dmap, 0)
 
@@ -375,12 +375,12 @@ def rebuild(dmap, kmap, connections, r, grid_h, grid_w, patch, rate, limbs, chan
   limb_num = len(limbs)
   while True:
     annos = {}
-    explore(dmap, kmap, [], annos, connections, 2, grid_h, grid_w, stop_thres, limb_num, channels)
+    explore(dmap, kmap, [], annos, connections, r, grid_h, grid_w, stop_thres, limb_num, channels)
     if len(annos) == 0:
       break
     # vis_kmap(kmap, 'kmap_before.jpg')
-    clean(dmap, annos, patch, connections)
-    kmap = get_kmap_from_dmap(dmap, limbs)
+    # clean(dmap, annos, patch, connections)
+    # kmap = get_kmap_from_dmap(dmap, limbs)
     # vis_kmap(kmap, 'kmap_after.jpg')
     
     # src = misc.imread('ffa97d027dfc2f2fc62692a035535579c5be74e0.jpg')
@@ -392,7 +392,7 @@ def rebuild(dmap, kmap, connections, r, grid_h, grid_w, patch, rate, limbs, chan
     # print('clean')
     # input()
     result.append(annos2list(annos, rate))
-    # break
+    break
   return result
 
 def annos2list(annos, rate):
@@ -431,16 +431,15 @@ def concat_dmaps(batch_dmaps, lefts, tops, img2dmap):
   w = lefts[-1] // img2dmap + length
   h = tops[-1] // img2dmap + length
   dmap = np.zeros((h,w,depth))
-  # cnt = np.zeros((h,w,depth))
+  cnt = np.zeros((h,w))
   for i in range(len(lefts)):
     left = lefts[i] // img2dmap
     right = left + length
     top = tops[i] // img2dmap
     bottom = top + length
-    dmap[top:bottom, left:right, :] = np.maximum(dmap[top:bottom, left:right, :], batch_dmaps[i,:,:,:])
-    # dmap[top:bottom, left:right, :] += batch_dmaps[i, :, :, :]
-    # cnt[top:bottom, left:right, :] += 1
-  # dmap /= cnt
+    dmap[top:bottom, left:right, :] += batch_dmaps[i, :, :, :]
+    cnt[top:bottom, left:right] += 1
+  dmap /= np.reshape(cnt, (h,w,1))
   return dmap
 
 # get the keypoint ground truth
@@ -671,11 +670,12 @@ def vis_dmap(dmap, save_name):
   vis_kmap(k, save_name)
 
 def vis_layer(layer, save_name):
-  l = np.round(layer * 255).astype(np.uint8)
+  l = np.maximum(layer, 0)
+  l = np.round(l * 255).astype(np.uint8)
   misc.imsave(save_name, l)
 
 if __name__ == '__main__':
-  pass
+  compute_connections()
   # src = misc.imread('./image/00a63555101c6a702afa83c9865e0296c3cafd6f.jpg')
   # imgs, lefts, tops, rate = multi_resize(src, 368, 24)
   # num = len(imgs)
@@ -690,10 +690,17 @@ if __name__ == '__main__':
   # h, w, _ = dmap.shape
   # grid_h, grid_w = get_grid(h, w)
   # kmap = get_kmap_from_dmap(dmap, get_limbs())
-  # annos = rebuild(dmap, kmap, get_connections(), 2, grid_h, grid_w, get_patch(10, 4), 1)
+  # annos = rebuild(dmap, kmap, get_connections(), 2, grid_h, grid_w, get_patch(10, 4), 0.05958549222797927461139896373057, get_limbs())
   # final = format_annos(annos, 'test')
+  # print(final)
+  # for i in range(len(final['keypoint_annotations'])):
+  #   k_rev = get_key_hmap((772, 950), [final['keypoint_annotations']['human%d'%(i+1)]], get_patch(40,32), r=20)
+  #   src = misc.imread('ffa97d027dfc2f2fc62692a035535579c5be74e0.jpg')
+  #   cover_key_map(src, k_rev)
+  #   misc.imsave('vis_anno_%d.jpg'%i, src)
+
   # with open('inf_out.json', 'w') as f:
-  # j = json.dumps(final)
+  #   j = json.dumps(final)
   # print(j)
 
   # for human in result:

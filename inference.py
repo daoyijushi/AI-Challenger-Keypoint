@@ -53,7 +53,6 @@ for name in names:
   batch_dmaps = sess.run(dmaps, feed_dict={inflow:imgs})[-1]
 
   dmap = util.concat_dmaps(batch_dmaps, lefts, tops, 8)
-
   np.save('dmap.npy', dmap)
 
 #   h, w, _ = dmap.shape
