@@ -8,6 +8,7 @@ import scipy.misc as misc
 import json
 import util
 import numpy as np
+import inf_util
 
 Flags = gflags.FLAGS
 
@@ -53,7 +54,10 @@ for name in names:
   batch_dmaps = sess.run(dmaps, feed_dict={inflow:imgs})[-1]
 
   dmap = util.concat_dmaps(batch_dmaps, lefts, tops, 8)
-  np.save('dmap.npy', dmap)
+  kmap = util.get_kmap_from_dmap(dmap, limbs)
+  humans = inf_util.reconstruct(dmap, kmap, 5)
+  annos = inf_util.format(humans, name.split('.')[0], rate)
+  result.append(annos)
 
 #   h, w, _ = dmap.shape
 #   grid_h, grid_w = util.get_grid(h, w)
@@ -63,12 +67,12 @@ for name in names:
 
 #   annos = util.rebuild(dmap, kmap, connections, 2, grid_h, grid_w, patch, rate)
 #   result.append(util.format_annos(annos, name.split('.')[0]))
-#   toc = time.time()
+  toc = time.time()
 
-#   print(name, 'time cost', toc-tic)
+  print(name, 'time cost', toc-tic)
 
-# j = json.dumps(result)
-# with open(save_path, 'w') as f:
-#   f.write(j)
+j = json.dumps(result)
+with open(save_path, 'w') as f:
+  f.write(j)
 
 
