@@ -16,7 +16,7 @@ r = reader.DirReader('./data/train/', 'annotations_new.pkl', 16)
 
 sess = tf.Session()
 
-inflow, dmaps = network.v10()
+inflow, dmaps = network.v12()
 ref_dmap, loss = network.compute_single_loss(dmaps)
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 

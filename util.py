@@ -444,7 +444,7 @@ def concat_dmaps(batch_dmaps, lefts, tops, img2dmap):
   return dmap
 
 # get the keypoint ground truth
-def get_key_hmap(shape, annos, patch, r, channels=14):
+def get_key_hmap(shape, annos, patch, r=5, channels=14):
   y, x = shape[0], shape[1]
   key_map = np.zeros((y, x, channels))
   for keypoints in annos:
@@ -483,7 +483,7 @@ def get_dir_hmap(shape, annos, patch, limbs, r):
   dir_map = np.zeros((y, x, len(limbs) * 2))
   dir_map_re = np.zeros((y, x, len(limbs * 2)))
 
-  # cnt = np.ones((y, x, len(limbs)*2)) * 1e-8
+  cnt = np.ones((y,x,len(limbs)*2), dtype=np.float32)*1e-8
 
   for human in annos:
     for channel, limb in enumerate(limbs):
@@ -508,6 +508,8 @@ def get_dir_hmap(shape, annos, patch, limbs, r):
           down = min(y1+r, y)
           dir_map[top:down, left:right, channel*2:(channel*2+2)] += \
             (patch[r-(y1-top):r+(down-y1), r-(x1-left):r+(right-x1), :] * v)
+          cnt[top:down, left:right, channel*2:(channel*2+2)] += 1
+
 
           left = max(x2-r, 0)
           right = min(x2+r, x)
@@ -515,11 +517,13 @@ def get_dir_hmap(shape, annos, patch, limbs, r):
           down = min(y2+r, y)
           dir_map_re[top:down, left:right, channel*2:(channel*2+2)] -= \
             (patch[r-(y2-top):r+(down-y2), r-(x2-left):r+(right-x2), :] * v)
+          cnt[top:down, left:right, channel*2:(channel*2+2)] += 1
 
-          # cnt[top:down, left:right, channel*2:(channel*2+2)] += 1
-
-  # dir_map /= cnt
-  # dir_map_re /= cnt
+  # print(dir_map[3,14,:])
+  # print(cnt[3,14,:])
+  dir_map /= cnt
+  # print(dir_map[3,14,:])
+  dir_map_re /= cnt
   return dir_map, dir_map_re
 
 # add weights for direction map
@@ -605,14 +609,16 @@ def get_aff_hmap(shape, annos, limbs):
   aff_map /= (np.array(cnt).reshape(len(limbs)*2))
   return aff_map
 
-def cover_key_map(img, key_map):
+def cover_key_map(img, key_map, channel=0):
   tmp = np.amax(key_map, axis=2)
   tmp *= 255
   tmp = np.round(tmp).astype(np.uint8)
   tmp = np.minimum(tmp, 255)
   mask = (tmp > 1e-3)
   img[mask] = 0
-  img[:,:,0] = tmp
+  img[:,:,channel] += tmp
+  # for i in range(3):
+  #   img[:,:,i] = tmp
 
 def cover_aff_map(img, aff_map):
   # print(aff_map.shape)
@@ -663,6 +669,10 @@ def vis_kmap(kmap, save_name):
 def vis_dmap(dmap, save_name):
   k = get_kmap_from_dmap(dmap, get_limbs())
   vis_kmap(k, save_name)
+
+def vis_layer(layer, save_name):
+  l = np.round(layer * 255).astype(np.uint8)
+  misc.imsave(save_name, l)
 
 if __name__ == '__main__':
   pass

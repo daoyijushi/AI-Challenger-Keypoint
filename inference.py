@@ -23,7 +23,7 @@ save_path = Flags.save_path
 
 names = os.listdir(test_path)
 
-inflow, dmaps = network.v4()
+inflow, dmaps = network.v10()
 
 sess = tf.Session()
 saver = tf.train.Saver()
@@ -56,20 +56,20 @@ for name in names:
 
   np.save('dmap.npy', dmap)
 
-  h, w, _ = dmap.shape
-  grid_h, grid_w = util.get_grid(h, w)
+#   h, w, _ = dmap.shape
+#   grid_h, grid_w = util.get_grid(h, w)
 
-  kmap = util.get_kmap_from_dmap(dmap, limbs)
-  # util.vis_kmap(kmap, name.split('.')[0]+('_big.jpg'))
+#   kmap = util.get_kmap_from_dmap(dmap, limbs)
+#   # util.vis_kmap(kmap, name.split('.')[0]+('_big.jpg'))
 
-  annos = util.rebuild(dmap, kmap, connections, 2, grid_h, grid_w, patch, rate)
-  result.append(util.format_annos(annos, name.split('.')[0]))
-  toc = time.time()
+#   annos = util.rebuild(dmap, kmap, connections, 2, grid_h, grid_w, patch, rate)
+#   result.append(util.format_annos(annos, name.split('.')[0]))
+#   toc = time.time()
 
-  print(name, 'time cost', toc-tic)
+#   print(name, 'time cost', toc-tic)
 
-j = json.dumps(result)
-with open(save_path, 'w') as f:
-  f.write(j)
+# j = json.dumps(result)
+# with open(save_path, 'w') as f:
+#   f.write(j)
 
 

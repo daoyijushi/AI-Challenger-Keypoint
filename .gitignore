@@ -16,3 +16,4 @@ val_anno.pkl
 *.pkl
 *.json
 train_log.txt
+*.npy
