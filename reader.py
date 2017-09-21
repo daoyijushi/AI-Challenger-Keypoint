@@ -211,6 +211,139 @@ class KReader:
     keypoint_hmap = np.array(keypoint_hmap, dtype=np.float32)
     return img, keypoint_hmap, names
 
+class LReader:
+  def __init__(self, img_dir, anno_path, batch_size, pl=10, ps=4, l1=368, l2=46):
+    self.img_dir = img_dir
+    with open(anno_path, 'rb') as f:
+      self.data = pickle.load(f)
+    self.batch_size = batch_size
+    self.index = 0
+    self.volumn = len(self.data)
+    self.length = l1
+    self.short = l2
+    self.patch_l = pl
+    self.patch_s = ps
+    random.shuffle(self.data)
+    self.patch = util.get_patch(self.patch_l, self.patch_s)
+    self.ones = np.ones((self.patch_l,self.patch_l,2))
+    self.limbs = util.get_limbs()
+    self.mean = np.array([122.35131039, 115.17054545, 107.60200075])
+    self.var = np.array([35.77071304, 35.39201422, 37.7260754])
+    np.random.seed(822)
+    print('DirReader initialized. Data volumn %d, batch size %d.' \
+      % (self.volumn, self.batch_size))
+
+  def next_batch(self):
+    start = self.index
+    end = self.index + self.batch_size
+    if end >= self.volumn:
+      end = self.volumn
+      self.index = 0
+    else:
+      self.index = end
+
+    data_batch = self.data[start:end]
+    img = []
+    keypoint_hmap = []
+    direction_hmap = []
+    names = []
+    lables = []
+    link_kmaps = []
+    for piece in data_batch:
+      tmp = misc.imread(self.img_dir + piece['image_id'] + '.jpg')
+      names.append(piece['image_id'])
+      
+      # resize the img and annotation to 368x368
+      tmp, rate, left, top = \
+        util.resize(tmp, self.length)
+      annos = np.array(list(piece['keypoint_annotations'].values()), dtype=np.float16)
+      annos[:, ::3] = annos[:, ::3] * rate - left
+      annos[:, 1::3] = annos[:, 1::3] * rate - top
+      annos = annos.astype(np.int16)
+
+      img.append(tmp)
+
+      # resize the img and annotations to 46x46
+      tmp = misc.imresize(tmp, (self.short, self.short))
+      rate = self.short / self.length
+      annos[:, ::3] = annos[:, ::3] * rate
+      annos[:, 1::3] = annos[:, 1::3] * rate
+      annos = np.round(annos).astype(np.int8)
+
+      kmap = util.get_key_hmap(\
+        tmp.shape, annos, self.patch, self.patch_l//2)
+      keypoint_hmap.append(kmap)
+
+      human_num = len(annos)
+      kmap_start = None
+      kmap_end = None
+      # since many img contains only one people, we manually
+      # reduce the possibility to get the positive sample
+      if np.random.random_sample() < 0.3 or human_num == 1:
+        # extract from the same people
+        while True:
+          limb = np.random.randint(13)
+          start = self.limbs[limb][0]
+          end = self.limbs[limb][1]
+          human = annos[np.random.randint(human_num)]
+          start_x = human[start*3]
+          start_y = human[start*3+1]
+          start_v = human[start*3+2]
+          end_x = human[end*3]
+          end_y = human[end*3+1]
+          end_v = human[end*3+2]
+          if util.validate(start_x, start_y, start_v, self.short, self.short) \
+            and util.validate(end_x, end_y, end_v, self.short, self.short):
+
+            lables.append(1)
+            break
+      else:
+        # extract from two different humen
+        while True:
+          limb = np.random.randint(13)
+          start = self.limbs[limb][0]
+          end = self.limbs[limb][1]
+
+          index1 = np.random.randint(human_num)
+          human1 = annos[index1]
+          start_x = human1[start*3]
+          start_y = human1[start*3+1]
+          start_v = human1[start*3+2]
+
+          index2 = np.random.randint(human_num)
+          human2 = annos[index2]
+          end_x = human2[end*3]
+          end_y = human2[end*3+1]
+          end_v = human2[end*3+2]
+
+          if util.validate(start_x, start_y, start_v, self.short, self.short) \
+            and util.validate(end_x, end_y, end_v, self.short, self.short) \
+            and index1 != index2:
+
+            lables.append(0)
+            break
+
+      kmap_start = util.get_single_kmap((self.short, self.short), start_x, start_y, self.patch_l//2, self.patch)
+      kmap_end = util.get_single_kmap((self.short, self.short), end_x, end_y, self.patch_l//2, self.patch)
+      link_kmaps.append(np.stack((kmap_start, kmap_end), axis=-1))
+
+      tmp_dmap, tmp_dmap_re = util.get_dir_hmap(\
+        tmp.shape, annos, self.ones, self.limbs, self.patch_l//2)
+
+      dmap = util.weight_dir_hmap(kmap, tmp_dmap, tmp_dmap_re, self.limbs)
+
+      direction_hmap.append(dmap)
+
+    img = np.array(img, dtype=np.float32)
+    img -= self.mean
+    img /= self.var
+    keypoint_hmap = np.array(keypoint_hmap, dtype=np.float32)
+    direction_hmap = np.array(direction_hmap, dtype=np.float32)
+    lables = np.array(lables, dtype=np.float32)
+    link_kmaps = np.array(link_kmaps, dtype=np.float32)
+    
+    return img, keypoint_hmap, direction_hmap, names, lables, link_kmaps
+
 class MultiReader:
   def __init__(self, img_dir, anno_path, batch_size, pl=10, ps=4):
     self.img_dir = img_dir

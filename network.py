@@ -26,12 +26,12 @@ def c4c(inflow, filters, name):
     l5 = layers.conv2d(l4, f5, 3, 2)
   return l5
 
-def c2c(inflow, filters, name):
+def c2c(inflow, filters, name, kernel_size=3):
   f1, f2, f3 = filters
   with tf.variable_scope(name):
-    l1 = layers.conv2d(inflow, f1, 3)
-    l2 = layers.conv2d(l1, f2, 3)
-    l3 = layers.conv2d(l2, f3, 3, 2)
+    l1 = layers.conv2d(inflow, f1, kernel_size)
+    l2 = layers.conv2d(l1, f2, kernel_size)
+    l3 = layers.conv2d(l2, f3, kernel_size, 2)
   return l3
 
 def c5(inflow, outsize, name, filters=128):
@@ -586,38 +586,44 @@ def k2():
 
   # feature extraction
   l1 = c2c(l0, (64,64,64), 'module_1')
-
   l2 = c2c(l1, (128,128,128), 'module_2')
-
   l3 = c4c(l2, (256,256,256,256,256), 'module_3')
-
   fmap = c4(l3, (512,512,256,256), 'module_4')
-
   l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
   kmap_1 = layers.conv2d(l5_1, 14, 1, activation_fn=tf.sigmoid) # 26*2 limbs
-
   concat_1 = tf.concat((kmap_1, fmap), axis=3)
-
   kmap_2 = c7s(concat_1, 14, 'stage_2')
   concat_2 = tf.concat((kmap_2, fmap), axis=3)
-
   kmap_3 = c7s(concat_2, 14, 'stage_3')
   concat_3 = tf.concat((kmap_3, fmap), axis=3)
-
   kmap_4 = c7s(concat_3, 14, 'stage_4')
   concat_4 = tf.concat((kmap_4, fmap), axis=3)
-
   kmap_5 = c7s(concat_4, 14, 'stage_5')
   concat_5 = tf.concat((kmap_5, fmap), axis=3)
-
   kmap_6 = c7s(concat_5, 14, 'stage_6')
 
   kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
 
   return l0, kmaps
 
-def link():
-  l0 = tf.placeholder(tf.float32, (None, None, None, 260)) # 260 = 256 + 14
+def l1():
+  img = tf.placeholder(tf.float32, (None, 368, 368, 3))
+  dmap = tf.placeholder(tf.float32, (None, 46, 46, 52))
+  kmap = tf.placeholder(tf.float32, (None, 46, 46, 2))
+
+  l1 = c2c(img, (64,64,64), 'module_1', 5)
+  l2 = c2c(l1, (128,128,128), 'module_2', 5)
+  l3 = c2c(l2, (128,128,128), 'module_3', 5)
+
+  c1 = tf.concat((l3, dmap, kmap), axis=3)
+
+  l4 = c2c(c1, (256,256,256), 'module_4', 5)
+  l5 = c2c(l4, (256,256,256), 'module_5', 5)
+  l6 = c2c(l5, (256,256,256), 'module_6', 5)
+  l7 = layers.flatten(l6)
+  l8 = layers.fully_connected(l7, 1, activation_fn=tf.sigmoid)
+
+  return img, dmap, kmap, l8
 
 def compute_k_loss(inflow, l_rate):
   ref = tf.placeholder(tf.float32, inflow[0].shape)

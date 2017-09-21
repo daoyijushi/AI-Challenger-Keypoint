@@ -468,6 +468,14 @@ def get_key_hmap(shape, annos, patch, r=5, channels=14):
             key_map[h, w, i] = max(key_map[h, w, i], patch[r+h-ky, r+w-kx])
   return key_map
 
+def get_single_kmap(shape, x, y, r, patch):
+  h = shape[0]
+  w = shape[1]
+  kmap = np.zeros((h, w))
+  left, right, top, down = get_square_patch(x, y, w, h, r)
+  kmap[top:down, left:right] = patch[r-(y-top):r+(down-y), r-(x-left):r+(right-x)]
+  return kmap
+
 def rescale_annos(annos, rate):
   a = annos.astype(np.float32)
   a[:, ::3] = a[:, ::3] * rate
