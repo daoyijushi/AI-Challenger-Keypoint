@@ -105,7 +105,13 @@ def stage(inflow, name):
   amap = c5(inflow, 26, name + '_2')
   return kmap, amap
 
-def vanilla():
+def stage7(inflow, name):
+  kmap = c7(inflow, 14, name + '_1')
+  amap = c7(inflow, 26, name + '_2')
+  return kmap, amap
+
+# affinity map
+def a1():
   l0 = tf.placeholder(tf.float32, (None,None,None,3))
 
   # feature extraction
@@ -141,6 +147,49 @@ def vanilla():
   concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
 
   kmap_6, amap_6 = stage(concat_5, 'stage_6')
+
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
+  amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
+
+  return l0, kmaps, amaps
+
+# use c7 replace c5
+def a2():
+  l0 = tf.placeholder(tf.float32, (None,None,None,3))
+
+  # feature extraction
+  l1 = c2(l0, 64, 'module_1')
+  p1 = layers.max_pool2d(l1, 2)
+
+  l2 = c2(p1, 128, 'module_2')
+  p2 = layers.max_pool2d(l2, 2)
+
+  l3 = c4(p2, (256,256,256,256), 'module_3')
+  p3 = layers.max_pool2d(l3, 2)
+
+  fmap = c4(p3, (512,512,256,256), 'module_4')
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
+
+  l5_2 = c4(fmap, (128,128,128,512), 'stage_1_2')
+  amap_1 = layers.conv2d(l5_2, 26, 1, activation_fn=None) # 13 limbs
+
+  concat_1 = tf.concat((kmap_1, amap_1, fmap), axis=3)
+
+  kmap_2, amap_2 = stage7(concat_1, 'stage_2')
+  concat_2 = tf.concat((kmap_2, amap_2, fmap), axis=3)
+
+  kmap_3, amap_3 = stage7(concat_2, 'stage_3')
+  concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
+
+  kmap_4, amap_4 = stage7(concat_3, 'stage_4')
+  concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
+
+  kmap_5, amap_5 = stage7(concat_4, 'stage_5')
+  concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
+
+  kmap_6, amap_6 = stage7(concat_5, 'stage_6')
 
   kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
   amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
