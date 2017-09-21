@@ -229,6 +229,7 @@ class LReader:
     self.limbs = util.get_limbs()
     self.mean = np.array([122.35131039, 115.17054545, 107.60200075])
     self.var = np.array([35.77071304, 35.39201422, 37.7260754])
+    self.limb_index = [0,1,2,3,4,5,6,7,8,9,10,11,12]
     np.random.seed(822)
     print('DirReader initialized. Data volumn %d, batch size %d.' \
       % (self.volumn, self.batch_size))
@@ -275,14 +276,14 @@ class LReader:
       keypoint_hmap.append(kmap)
 
       human_num = len(annos)
-      kmap_start = None
-      kmap_end = None
+      failed = True
       # since many img contains only one people, we manually
       # reduce the possibility to get the positive sample
-      if np.random.random_sample() < 0.3 or human_num == 1:
+
+      random.shuffle(self.limb_index)
+      if np.random.random_sample() < 0.15 or human_num == 1:
         # extract from the same people
-        while True:
-          limb = np.random.randint(13)
+        for limb in self.limb_index:
           start = self.limbs[limb][0]
           end = self.limbs[limb][1]
           human = annos[np.random.randint(human_num)]
@@ -295,12 +296,20 @@ class LReader:
           if util.validate(start_x, start_y, start_v, self.short, self.short) \
             and util.validate(end_x, end_y, end_v, self.short, self.short):
 
-            lables.append(1)
+            kmap_start = util.get_single_kmap((self.short, self.short), start_x, start_y, self.patch_l//2, self.patch)
+            kmap_end = util.get_single_kmap((self.short, self.short), end_x, end_y, self.patch_l//2, self.patch)
+            link_kmaps.append(np.stack((kmap_start, kmap_end), axis=-1))
+            failed = False
             break
+        if failed:
+          link_kmaps.append(np.zeros((self.short, self.short, 2)))
+          print('no validate limb in %s (same)' % piece['image_id'])
+
+        lables.append(1)
+
       else:
         # extract from two different humen
-        while True:
-          limb = np.random.randint(13)
+        for limb in self.limb_index:
           start = self.limbs[limb][0]
           end = self.limbs[limb][1]
 
@@ -319,13 +328,18 @@ class LReader:
           if util.validate(start_x, start_y, start_v, self.short, self.short) \
             and util.validate(end_x, end_y, end_v, self.short, self.short) \
             and index1 != index2:
-
+            
+            kmap_start = util.get_single_kmap((self.short, self.short), start_x, start_y, self.patch_l//2, self.patch)
+            kmap_end = util.get_single_kmap((self.short, self.short), end_x, end_y, self.patch_l//2, self.patch)
+            link_kmaps.append(np.stack((kmap_start, kmap_end), axis=-1))
             lables.append(0)
+            failed = False
             break
+        if failed:
+          link_kmaps.append(np.zeros((self.short, self.short, 2)))
+          print('no validate limb in %s (differen)' % piece['image_id'])
 
-      kmap_start = util.get_single_kmap((self.short, self.short), start_x, start_y, self.patch_l//2, self.patch)
-      kmap_end = util.get_single_kmap((self.short, self.short), end_x, end_y, self.patch_l//2, self.patch)
-      link_kmaps.append(np.stack((kmap_start, kmap_end), axis=-1))
+        lables.append(0)
 
       tmp_dmap, tmp_dmap_re = util.get_dir_hmap(\
         tmp.shape, annos, self.ones, self.limbs, self.patch_l//2)

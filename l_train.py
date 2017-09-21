@@ -55,7 +55,7 @@ while True:
   toc = time.time()
   interval = (toc - tic) * 1000
 
-  print('Iter %d, loss %g, timecost %g ms' % (step_cnt, batch_loss, interval))
+  print('Iter %d, loss %g, timecost %g ms (positive labels %d)' % (step_cnt, batch_loss, interval, np.sum(truth)))
   writer.add_summary(log, step_cnt)
 
   if step_cnt % 500 == 0 or step_cnt == 1:
