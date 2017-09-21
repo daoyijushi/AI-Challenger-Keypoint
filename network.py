@@ -76,8 +76,8 @@ def c7n(inflow, outsize, name, filters=128):
     l7 = layers.conv2d(l6, outsize, 1, activation_fn=None)
   return l7
 
-# use sigmoid in the last layer
-def c7s(inflow, outsize, name, filters=128):
+# use relu in all layers
+def c7r(inflow, outsize, name, filters=128):
   with tf.variable_scope(name):
     l1 = layers.conv2d(inflow, filters, 7)
     l2 = layers.conv2d(l1, filters, 7)
@@ -86,6 +86,18 @@ def c7s(inflow, outsize, name, filters=128):
     l5 = layers.conv2d(l4, filters, 7)
     l6 = layers.conv2d(l5, filters, 1)
     l7 = layers.conv2d(l6, outsize, 1)
+  return l7
+
+# use sigmoid in last layerer
+def c7s(inflow, outsize, name, filters=128):
+  with tf.variable_scope(name):
+    l1 = layers.conv2d(inflow, filters, 7)
+    l2 = layers.conv2d(l1, filters, 7)
+    l3 = layers.conv2d(l2, filters, 7)
+    l4 = layers.conv2d(l3, filters, 7)
+    l5 = layers.conv2d(l4, filters, 7)
+    l6 = layers.conv2d(l5, filters, 1)
+    l7 = layers.conv2d(l6, outsize, 1, activation_fn=tf.sigmoid)
   return l7
 
 def stage(inflow, name):
@@ -532,54 +544,80 @@ def v14():
 
   return l0, dmaps
 
-def res_block(inflow, scope, training):
+def res_block(inflow, scope):
   with tf.variable_scope(scope):
-    l1 = layers.conv2d(inflow, 64, 1, activation_fn=None)
-    bn1 = layers.batch_norm(l1, activation_fn=tf.nn.relu, is_training=training)
-
-    l2 = layers.conv2d(bn1, 64, 3, activation_fn=None)
-    bn2 = layers.batch_norm(l2, activation_fn=tf.nn.relu, is_training=training)
-
-    l3 = layers.conv2d(bn2, 256, 1, activation_fn=None)
-    bn3 = layers.batch_norm(l3,  activation_fn=None, is_training=training)
-    
-    l4 = bn3 + inflow
+    l1 = layers.conv2d(inflow, 64, 1)
+    l2 = layers.conv2d(l1, 64, 3)
+    l3 = layers.conv2d(l2, 256, 1)
+    l4 = l3 + inflow
     l5 = tf.nn.relu(l4)
   return l5
 
-# predict only kmap
+# predict only kmap, use res_block
 def k1():
   l0 = tf.placeholder(tf.float32, (None,None,None,3))
   training = tf.placeholder(tf.bool)
 
   l1 = layers.conv2d(l0, 256, 7, 2)
-  l2 = res_block(l1, 'block_1', training)
+  l2 = res_block(l1, 'block_1')
   l3 = layers.conv2d(l2, 256, 7, 2)
-  l4 = res_block(l3, 'block_1', training)
+  l4 = res_block(l3, 'block_2')
   l5 = layers.conv2d(l4, 256, 7, 2)
-  l6 = res_block(l5, 'block_2', training)
-  fmap = res_block(l6, 'block_3', training)
+  fmap = res_block(l5, 'block_3')
   k1 = layers.conv2d(fmap, 14, 7)
   c1 = tf.concat((k1, fmap), axis=3)
-  k2 = c7s(c1, 14, 'stage_1')
+  k2 = c7r(c1, 14, 'stage_1')
   c2 = tf.concat((k2, fmap), axis=3)
-  k3 = c7s(c2, 14, 'stage_2')
+  k3 = c7r(c2, 14, 'stage_2')
   c3 = tf.concat((k3, fmap), axis=3)
-  k4 = c7s(c3, 14, 'stage_3')
+  k4 = c7r(c3, 14, 'stage_3')
   c4 = tf.concat((k4, fmap), axis=3)
-  k5 = c7s(c4, 14, 'stage_4')
+  k5 = c7r(c4, 14, 'stage_4')
   c5 = tf.concat((k5, fmap), axis=3)
-  k6 = c7s(c5, 14, 'stage_5')
-  c6 = tf.concat((k6, fmap), axis=3)
-  k7 = c7s(c6, 14, 'stage_6')
+  k6 = c7r(c5, 14, 'stage_5')
 
-  kmaps = [k1, k2, k3, k4, k5, k6, k7]
+  kmaps = [k1, k2, k3, k4, k5, k6]
 
-  return l0, training, kmaps, fmap
+  return l0, kmaps, fmap
+
+# use traditional conv
+def k2():
+  l0 = tf.placeholder(tf.float32, (None,None,None,3))
+
+  # feature extraction
+  l1 = c2c(l0, (64,64,64), 'module_1')
+
+  l2 = c2c(l1, (128,128,128), 'module_2')
+
+  l3 = c4c(l2, (256,256,256,256,256), 'module_3')
+
+  fmap = c4(l3, (512,512,256,256), 'module_4')
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  kmap_1 = layers.conv2d(l5_1, 14, 1, activation_fn=tf.sigmoid) # 26*2 limbs
+
+  concat_1 = tf.concat((kmap_1, fmap), axis=3)
+
+  kmap_2 = c7s(concat_1, 14, 'stage_2')
+  concat_2 = tf.concat((kmap_2, fmap), axis=3)
+
+  kmap_3 = c7s(concat_2, 14, 'stage_3')
+  concat_3 = tf.concat((kmap_3, fmap), axis=3)
+
+  kmap_4 = c7s(concat_3, 14, 'stage_4')
+  concat_4 = tf.concat((kmap_4, fmap), axis=3)
+
+  kmap_5 = c7s(concat_4, 14, 'stage_5')
+  concat_5 = tf.concat((kmap_5, fmap), axis=3)
+
+  kmap_6 = c7s(concat_5, 14, 'stage_6')
+
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
+
+  return l0, kmaps
 
 def link():
   l0 = tf.placeholder(tf.float32, (None, None, None, 260)) # 260 = 256 + 14
-
 
 def compute_k_loss(inflow, l_rate):
   ref = tf.placeholder(tf.float32, inflow[0].shape)

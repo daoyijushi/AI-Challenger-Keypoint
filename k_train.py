@@ -16,7 +16,7 @@ r = reader.KReader('./data/train/', 'annotations_new.pkl', 16)
 
 sess = tf.Session()
 
-inflow, training, pred_kmaps, _ = network.k1()
+inflow, pred_kmaps = network.k2()
 ref, loss, train_step = network.compute_k_loss(pred_kmaps, l_rate)
 
 tf.summary.scalar('loss', loss)
@@ -42,7 +42,7 @@ while True:
   img, kmap, names = r.next_batch()
 
   _, batch_loss, step_cnt, log = \
-    sess.run([train_step, loss, one_step_op, merged], feed_dict={inflow:img, ref:kmap, training:True})
+    sess.run([train_step, loss, one_step_op, merged], feed_dict={inflow:img, ref:kmap})
 
   toc = time.time()
   interval = (toc - tic) * 1000
@@ -54,7 +54,7 @@ while True:
     save_name = '%s.ckpt' % model_name
     saver.save(sess, model_path+save_name, global_step=step_cnt)
 
-    k = sess.run(pred_kmaps, feed_dict={inflow:img[0:1], training:False})
+    k = sess.run(pred_kmaps, feed_dict={inflow:img[0:1]})
     k = k[-1].reshape([46,46,14])
     util.vis_kmap(k, 'pred_%d.jpg' % step_cnt)
     util.vis_kmap(kmap[0], 'truth_%d.jpg' % step_cnt)
