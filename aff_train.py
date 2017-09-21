@@ -64,9 +64,15 @@ while True:
     k = k[-1].reshape((46,46,14))
     a = a[-1].reshape((46,46,26))
     tmp = misc.imresize(img[0], (46,46))
-    util.visualization(tmp, k, a, 'pred_%d.jpg'%step_cnt)
-    util.visualization(tmp, keypoint_hmap[0], affinity_hmap[0], 'truth_%d.jpg'%step_cnt)
+
+    util.vis_amap(affinity_hmap[0], 'truth_amap_%d.jpg'%step_cnt)
+    util.vis_kmap(keypoint_hmap[0], 'truth_kmap_%d.jpg'%step_cnt)
+
+    util.vis_amap(a, 'pred_amap_%d.jpg'%step_cnt)
+    util.vis_kmap(k, 'pred_kmap_%d.jpg'%step_cnt)
+
     misc.imsave('src_%d.jpg'%step_cnt, img[0])
+
     with open('train_log.txt', 'a') as f:
       f.write(str(int(step_cnt)))
       f.write(' ')

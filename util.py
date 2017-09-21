@@ -677,6 +677,14 @@ def vis_dmap(dmap, save_name):
   k = get_kmap_from_dmap(dmap, get_limbs())
   vis_kmap(k, save_name)
 
+def vis_amap(amap, save_name):
+  x = amap[:,:,::2]
+  y = amap[:,:,1::2]
+  tmp = np.round(np.sqrt(np.square(x) + np.square(y))*255).astype(np.uint8)
+  tmp = np.max(tmp, axis=2)
+  tmp = np.minimum(tmp, 255)
+  misc.imsave(save_name, tmp)
+
 def vis_layer(layer, save_name):
   l = np.maximum(layer, 0)
   l = np.round(l * 255).astype(np.uint8)
