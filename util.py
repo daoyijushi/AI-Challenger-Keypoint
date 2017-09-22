@@ -549,7 +549,7 @@ def weight_dir_hmap(kmap, dmap, dmap_re, limbs):
   dmap = np.concatenate((dmap, dmap_re), axis=2)
   return dmap
 
-def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
+def draw_limb(aff_map, x1, y1, x2, y2, channel, cnt, r=1):
   x1 = int(x1)
   x2 = int(x2)
   y1 = int(y1)
@@ -582,6 +582,8 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
       for j in range(top, down):
         aff_map[j, i, channel*2] += v_x / (2 ** abs(j-mid))
         aff_map[j, i, channel*2+1] += v_y / (2 ** abs(j-mid))
+        cnt[j, i, channel*2] += 1
+        cnt[j, i, channel*2+1] += 1
   else:
     rate = diff_x / diff_y
     for i in range(y1, y2, step_y):
@@ -591,13 +593,15 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, r=1):
       for j in range(left, right):
         aff_map[i, j, channel*2] += v_x / (2 ** abs(j-mid))
         aff_map[i, j, channel*2+1] += v_y / (2 ** abs(j-mid))
+        cnt[i, j, channel*2] += 1
+        cnt[i, j, channel*2+1] += 1
 
 # limbs supposed to be
 # ((12,13),(13,3),(13,0),(3,4),(4,5),(0,1),(1,2),(13,9), (9,10),(10,11),(13,6),(6,7),(7,8))
 def get_aff_hmap(shape, annos, limbs):
   h, w, _ = shape
   aff_map = np.zeros((h, w, len(limbs)*2), dtype=np.float32)
-  cnt = [1e-8] * len(limbs) * 2
+  cnt = np.ones((h, w, len(limbs)*2), dtype=np.float32)*1e-8
   for human in annos:
     for channel, limb in enumerate(limbs):
       num = limb[0] * 3
@@ -609,11 +613,9 @@ def get_aff_hmap(shape, annos, limbs):
       y2 = human[num + 1]
       v2 = human[num + 2]
       if validate(x1, y1, v1, h, w) and validate(x2, y2, v2, h, w):
-        draw_limb(aff_map, x1, y1, x2, y2, channel)
-        cnt[channel*2] += 1
-        cnt[channel*2+1] += 1
+        draw_limb(aff_map, x1, y1, x2, y2, channel, cnt)
 
-  aff_map /= (np.array(cnt).reshape(len(limbs)*2))
+  aff_map /= cnt
   return aff_map
 
 def cover_key_map(img, key_map, channel=0):
