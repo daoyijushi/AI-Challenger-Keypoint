@@ -259,7 +259,7 @@ def a3():
 
 # use c7_large
 def a4():
-  holder(tf.float32, (None,None,None,3))
+  l0 = tf.placeholder(tf.float32, (None,None,None,3))
 
   # feature extraction
   l1 = c2(l0, 64, 'module_1')
