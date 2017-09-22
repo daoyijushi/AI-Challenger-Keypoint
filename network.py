@@ -55,6 +55,18 @@ def c7(inflow, outsize, name, filters=128):
     l7 = layers.conv2d(l6, outsize, 1, activation_fn=None)
   return l7
 
+# use kernelsize = 9
+def c7_large(inflow, outsize, name, filters=128):
+  with tf.variable_scope(name):
+    l1 = layers.conv2d(inflow, filters, 9)
+    l2 = layers.conv2d(l1, filters, 9)
+    l3 = layers.conv2d(l2, filters, 9)
+    l4 = layers.conv2d(l3, filters, 9)
+    l5 = layers.conv2d(l4, filters, 9)
+    l6 = layers.conv2d(l5, filters, 1, activation_fn=None)
+    l7 = layers.conv2d(l6, outsize, 1, activation_fn=None)
+  return l7
+
 def c7t(inflow, outsize, name, filters=128):
   with tf.variable_scope(name):
     l1 = layers.conv2d(inflow, filters, 7, activation_fn=tf.tanh)
@@ -109,6 +121,11 @@ def stage(inflow, name):
 def stage7(inflow, name, outsize_1=14, outsize_2=26):
   l1 = c7(inflow, outsize_1, name + '_1')
   l2 = c7(inflow, outsize_2, name + '_2')
+  return l1, l2
+
+def stage7_large(inflow, name, outsize_1=14, outsize_2=26):
+  l1 = c7_large(inflow, outsize_1, name + '_1')
+  l2 = c7_large(inflow, outsize_2, name + '_2')
   return l1, l2
 
 # affinity map
@@ -197,6 +214,7 @@ def a2():
 
   return l0, kmaps, amaps
 
+# use dmap
 def a3():
   l0 = tf.placeholder(tf.float32, (None,None,None,3))
 
@@ -238,6 +256,49 @@ def a3():
   amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
 
   return l0, dmaps, amaps
+
+# use c7_large
+def a4():
+  holder(tf.float32, (None,None,None,3))
+
+  # feature extraction
+  l1 = c2(l0, 64, 'module_1')
+  p1 = layers.max_pool2d(l1, 2)
+
+  l2 = c2(p1, 128, 'module_2')
+  p2 = layers.max_pool2d(l2, 2)
+
+  l3 = c4(p2, (256,256,256,256), 'module_3')
+  p3 = layers.max_pool2d(l3, 2)
+
+  fmap = c4(p3, (512,512,256,256), 'module_4')
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
+
+  l5_2 = c4(fmap, (128,128,128,512), 'stage_1_2')
+  amap_1 = layers.conv2d(l5_2, 26, 1, activation_fn=None) # 13 limbs
+
+  concat_1 = tf.concat((kmap_1, amap_1, fmap), axis=3)
+
+  kmap_2, amap_2 = stage7_large(concat_1, 'stage_2')
+  concat_2 = tf.concat((kmap_2, amap_2, fmap), axis=3)
+
+  kmap_3, amap_3 = stage7_large(concat_2, 'stage_3')
+  concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
+
+  kmap_4, amap_4 = stage7_large(concat_3, 'stage_4')
+  concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
+
+  kmap_5, amap_5 = stage7_large(concat_4, 'stage_5')
+  concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
+
+  kmap_6, amap_6 = stage7_large(concat_5, 'stage_6')
+
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
+  amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
+
+  return l0, kmaps, amaps
 
 # shallow
 def dirmap():
