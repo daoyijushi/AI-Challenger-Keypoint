@@ -417,33 +417,37 @@ def format_annos(annos, img_id):
     ret['keypoint_annotations'][h%(i+1)] = human
   return ret
 
-def validate(x, y, v, h, w):
-  if x < 0 or x >= w or y < 0 or y >= h or v == 3:
-    return False
+def validate(x, y, v, h, w, strict):
+  if strict:
+    if x < 0 or x >= w or y < 0 or y >= h or v != 1:
+      return False
+  else:
+    if x < 0 or x >= w or y < 0 or y >= h or v == 3:
+      return False
   return True
 
-# img2dmap: the rescale ratio between img and dmap
-# for example, img is 368x368, and dmap is 46x46
-# then img2dmap is 8 (368/46=8)
-def concat_dmaps(batch_dmaps, lefts, tops, img2dmap):
-  length = batch_dmaps.shape[1]
-  depth = batch_dmaps.shape[3]
-  w = lefts[-1] // img2dmap + length
-  h = tops[-1] // img2dmap + length
-  dmap = np.zeros((h,w,depth))
+# img2map: the rescale ratio between img and map
+# for example, img is 368x368, and map is 46x46
+# then img2map is 8 (368/46=8)
+def concat_maps(batch_maps, lefts, tops, img2map):
+  length = batch_maps.shape[1]
+  depth = batch_maps.shape[3]
+  w = lefts[-1] // img2map + length
+  h = tops[-1] // img2map + length
+  big_map = np.zeros((h,w,depth))
   cnt = np.zeros((h,w))
   for i in range(len(lefts)):
-    left = lefts[i] // img2dmap
+    left = lefts[i] // img2map
     right = left + length
-    top = tops[i] // img2dmap
+    top = tops[i] // img2map
     bottom = top + length
-    dmap[top:bottom, left:right, :] += batch_dmaps[i, :, :, :]
+    big_map[top:bottom, left:right, :] += batch_maps[i, :, :, :]
     cnt[top:bottom, left:right] += 1
-  dmap /= np.reshape(cnt, (h,w,1))
-  return dmap
+  big_map /= np.reshape(cnt, (h,w,1))
+  return big_map
 
 # get the keypoint ground truth
-def get_key_hmap(shape, annos, patch, r=5, channels=14):
+def get_key_hmap(shape, annos, patch, r=5, channels=14, strict=False):
   y, x = shape[0], shape[1]
   key_map = np.zeros((y, x, channels))
   for keypoints in annos:
@@ -452,7 +456,7 @@ def get_key_hmap(shape, annos, patch, r=5, channels=14):
       kx = int(keypoints[num])
       ky = int(keypoints[num + 1])
       kv = int(keypoints[num + 2])
-      if validate(kx, ky, kv, y, x):
+      if validate(kx, ky, kv, y, x, strict):
         left = max(kx-r, 0)
         right = min(kx+r, x)
         top = max(ky-r, 0)
@@ -598,7 +602,7 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, cnt, r=1):
 
 # limbs supposed to be
 # ((12,13),(13,3),(13,0),(3,4),(4,5),(0,1),(1,2),(13,9), (9,10),(10,11),(13,6),(6,7),(7,8))
-def get_aff_hmap(shape, annos, limbs):
+def get_aff_hmap(shape, annos, limbs, strict=False):
   h, w, _ = shape
   aff_map = np.zeros((h, w, len(limbs)*2), dtype=np.float32)
   cnt = np.ones((h, w, len(limbs)*2), dtype=np.float32)*1e-8
@@ -612,7 +616,7 @@ def get_aff_hmap(shape, annos, limbs):
       x2 = human[num]
       y2 = human[num + 1]
       v2 = human[num + 2]
-      if validate(x1, y1, v1, h, w) and validate(x2, y2, v2, h, w):
+      if validate(x1, y1, v1, h, w, strict) and validate(x2, y2, v2, h, w, strict):
         draw_limb(aff_map, x1, y1, x2, y2, channel, cnt)
 
   aff_map /= cnt
