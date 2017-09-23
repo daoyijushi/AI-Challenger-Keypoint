@@ -8,6 +8,7 @@ import scipy.misc as misc
 import json
 import util
 import numpy as np
+import inf_util_ka
 
 Flags = gflags.FLAGS
 
@@ -58,31 +59,22 @@ for name in names:
   k = util.concat_maps(batch_k, lefts, tops, 8)
   a = util.concat_maps(batch_a, lefts, tops, 8)
 
-  np.save('amap.npy', a)
-  np.save('kmap.npy', k)
-
-  util.vis_kmap(k, 'kmap.jpg')
-  util.vis_amap(a, 'amap.jpg')
-
-
-  # humans = inf_util.reconstruct(dmap, kmap, 5)
-  # annos = inf_util.format(humans, name.split('.')[0], rate)
-  # result.append(annos)
+  humans = inf_util_ka.reconstruct(a, k, 10)
+  annos = inf_util_ka.format(humans, name.split('.')[0], rate)
+  result.append(annos)
 
 #   h, w, _ = dmap.shape
 #   grid_h, grid_w = util.get_grid(h, w)
 
-#   kmap = util.get_kmap_from_dmap(dmap, limbs)
-#   # util.vis_kmap(kmap, name.split('.')[0]+('_big.jpg'))
+  # util.vis_kmap(k, name.split('.')[0]+('_k.jpg'))
+  # util.vis_amap(a, name.split('.')[0]+('_a.jpg'))
 
-#   annos = util.rebuild(dmap, kmap, connections, 2, grid_h, grid_w, patch, rate)
-#   result.append(util.format_annos(annos, name.split('.')[0]))
   toc = time.time()
 
   print(name, 'time cost', toc-tic)
 
-# j = json.dumps(result)
-# with open(save_path, 'w') as f:
-#   f.write(j)
+j = json.dumps(result)
+with open(save_path, 'w') as f:
+  f.write(j)
 
 
