@@ -19,7 +19,7 @@ class Reader:
     self.patch_l = pl
     self.patch_s = ps
     random.shuffle(self.data)
-    self.patch = util.get_patch(10,4)
+    self.patch = util.get_patch(pl,ps)
     self.limbs = util.get_limbs()
     self.mean = np.array([122.35131039, 115.17054545, 107.60200075])
     self.var = np.array([35.77071304, 35.39201422, 37.7260754])
