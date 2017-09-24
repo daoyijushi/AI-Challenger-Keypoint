@@ -24,7 +24,7 @@ save_path = Flags.save_path
 
 names = os.listdir(test_path)
 
-inflow, kmaps, amaps = network.a4()
+inflow, kmaps, amaps = network.a2()
 
 sess = tf.Session()
 saver = tf.train.Saver()

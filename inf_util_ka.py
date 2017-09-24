@@ -3,8 +3,14 @@ import util
 import scipy.misc as misc
 import os
 import queue
+import hungarian
 
-
+def resize_map(small, target_h, target_w):
+  depth = small.shape[-1]
+  big = np.zeros((target_h, target_w, depth))
+  for i in range(depth):
+    big[:,:,i] = misc.imresize(small[:,:,i], (target_h, target_w))
+  return big
 
 def aff_score(x1, y1, x2, y2, ax, ay, r):
   h, w = ax.shape
@@ -59,7 +65,7 @@ def flat(k_slice, x, y, r):
   '''
   h, w = k_slice.shape
   left, right, top, down = util.get_square_patch(x, y, w, h, r)
-  patch = util.get_patch(r*2,16)
+  patch = util.get_patch(r*2, 16)
   for i in reversed(range(1,r)):
     left, right, top, down = util.get_square_patch(x, y, w, h, i)
     # k_slice[top:down, left:right] -= np.mean(k_slice[top:down, left:right])
@@ -127,7 +133,7 @@ def opt_match(mat):
 
 def reconstruct(amap, kmap, mask_r):
   connections = util.get_connections()
-  h, w, _ = amap.shape
+  height, width, _ = amap.shape
 
   # stop_thres = np.percentile(kmap[:,:,layer], 99, axis=(0,1))
   stop_thres = 0.15
@@ -167,7 +173,11 @@ def reconstruct(amap, kmap, mask_r):
 
       # print('finding layer%d' % layer2)
       k_slice = kmap[:,:,layer2]
+
+      # util.vis_layer(k_slice, 'k%d.jpg'%layer2, 'ffa97d027dfc2f2fc62692a035535579c5be74e0.jpg')
+
       end = find_outstander_layer(k_slice, mask_r, stop_thres)
+      # print(end)
 
       ax = amap[:,:,a_layer*2]
       ay = amap[:,:,a_layer*2+1]
@@ -207,10 +217,14 @@ if __name__ == '__main__':
 
   humans = reconstruct(amap, kmap, 10)
   annos = format(humans, 'ffa97d027dfc2f2fc62692a035535579c5be74e0', 0.05958549222797927461139896373057)
+  # annos = format(humans, 'ffa97d027dfc2f2fc62692a035535579c5be74e0', 1)
   print(annos)
 
   for i in range(len(annos['keypoint_annotations'])):
     k_rev = util.get_key_hmap((772, 950), [annos['keypoint_annotations']['human%d'%(i+1)]], util.get_patch(40,32), r=20)
+    # k_slice = k_rev[:,:,8].copy()
+    # k_rev[:,:,:] = 0
+    # k_rev[:,:,8] = k_slice
     src = misc.imread('ffa97d027dfc2f2fc62692a035535579c5be74e0.jpg')
     util.cover_key_map(src, k_rev)
     misc.imsave('vis_anno_%d.jpg'%i, src)
