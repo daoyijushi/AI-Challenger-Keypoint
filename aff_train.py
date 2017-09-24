@@ -16,14 +16,18 @@ r = reader.Reader('./data/train/', 'annotations_new.pkl', 16)
 
 sess = tf.Session()
 
-inflow, kmaps, amaps = network.a4()
+inflow, kmaps, amaps = network.a7()
 k_ref, a_ref, k_loss, a_loss, loss = network.compute_loss(kmaps, amaps, 0.5)
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
+depth = len(kmaps)
 
 tf.summary.scalar('total loss', loss)
 tf.summary.scalar('kmap loss', k_loss)
 tf.summary.scalar('amap loss', a_loss)
 tf.summary.scalar('learning rate', l_rate)
+tf.summary.scalar('avg k loss', k_loss / depth)
+tf.summary.scalar('avg a loss', a_loss / depth)
+tf.summary.scalar('avg loss', loss / depth)
 
 merged = tf.summary.merge_all()
 writer = tf.summary.FileWriter(model_path, sess.graph)

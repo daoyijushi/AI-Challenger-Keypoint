@@ -38,7 +38,7 @@ else:
 
 limbs = util.get_limbs()
 connections = util.get_connections()
-patch = util.get_patch(10, 4)
+patch = util.get_patch(16, 8)
 result = []
 mean = np.array([122.35131039, 115.17054545, 107.60200075])
 var = np.array([35.77071304, 35.39201422, 37.7260754])
