@@ -113,6 +113,14 @@ def c7s(inflow, outsize, name, filters=128):
     l7 = layers.conv2d(l6, outsize, 1, activation_fn=tf.sigmoid)
   return l7
 
+def fire(inflow, s11, e11, e33, name):
+  with tf.variable_scope(name):
+    squeeze = layers.conv2d(inflow, s11, 1)
+    expand_1 = layers.conv2d(squeeze, e11, 1)
+    expand_2 = layers.conv2d(squeeze, e33, 3)
+    outflow = tf.concat((expand_1, expand_2), axis=3)
+  return outflow
+
 def stage(inflow, name):
   kmap = c5(inflow, 14, name + '_1')
   amap = c5(inflow, 26, name + '_2')
@@ -349,6 +357,56 @@ def a7():
 
   return l0, kmaps, amaps
 
+# use deeper fmap
+def a8():
+  l0 = tf.placeholder(tf.float32, (None,None,None,3))
+
+  # feature extraction
+  l1 = layers.conv2d(l0, 128, 7, 2)
+
+  l2 = fire(l1, 64, 128, 128, 'fire_1')
+  p2 = layers.conv2d(l2, 256, 3, 2)
+
+  l3 = fire(p2, 128, 256, 256, 'fire_2')
+  p3 = layers.conv2d(l3, 256, 3, 2)
+
+  l4 = fire(p3, 128, 256, 256, 'fire_3')
+  l5 = fire(l4, 128, 256, 256, 'fire_4')
+  fmap = c4(l5, (256,256,256,256), 'module_4')
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
+
+  l5_2 = c4(fmap, (128,128,128,512), 'stage_1_2')
+  amap_1 = layers.conv2d(l5_2, 26, 1, activation_fn=None) # 13 limbs
+
+  concat_1 = tf.concat((kmap_1, amap_1, fmap), axis=3)
+
+  kmap_2, amap_2 = stage7(concat_1, 'stage_2')
+  concat_2 = tf.concat((kmap_2, amap_2, fmap), axis=3)
+
+  kmap_3, amap_3 = stage7(concat_2, 'stage_3')
+  concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
+
+  kmap_4, amap_4 = stage7(concat_3, 'stage_4')
+  concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
+
+  kmap_5, amap_5 = stage7(concat_4, 'stage_5')
+  concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
+
+  kmap_6, amap_6 = stage7(concat_5, 'stage_6')
+  concat_6 = tf.concat((kmap_6, amap_6, fmap), axis=3)
+
+  kmap_7, amap_7 = stage7(concat_6, 'stage_7')
+  concat_7 = tf.concat((kmap_7, amap_7, fmap), axis=3)
+
+  kmap_8, amap_8 = stage7(concat_7, 'stage_8')
+
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6, kmap_7, kmap_8]
+  amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6, amap_7, amap_8]
+
+  return l0, kmaps, amaps
+
 # shallow
 def dirmap():
   l0 = tf.placeholder(tf.float32, (None,368,368,3))
@@ -426,14 +484,6 @@ def v2():
   dmaps = [dmap_1, dmap_2, dmap_3, dmap_4, dmap_5, dmap_6]
 
   return l0, dmaps
-
-def fire(inflow, s11, e11, e33, name):
-  with tf.variable_scope(name):
-    squeeze = layers.conv2d(inflow, s11, 1)
-    expand_1 = layers.conv2d(squeeze, e11, 1)
-    expand_2 = layers.conv2d(squeeze, e33, 3)
-    outflow = tf.concat((expand_1, expand_2), axis=3)
-  return outflow
 
 # use fire
 def v3():

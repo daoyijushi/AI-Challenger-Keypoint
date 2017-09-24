@@ -16,7 +16,7 @@ r = reader.Reader('./data/train/', 'annotations_new.pkl', 16)
 
 sess = tf.Session()
 
-inflow, kmaps, amaps = network.a7()
+inflow, kmaps, amaps = network.a8()
 k_ref, a_ref, k_loss, a_loss, loss = network.compute_loss(kmaps, amaps, 0.5)
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 depth = len(kmaps)

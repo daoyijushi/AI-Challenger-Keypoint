@@ -3,7 +3,6 @@ import util
 import scipy.misc as misc
 import os
 import queue
-import hungarian
 
 def resize_map(small, target_h, target_w):
   depth = small.shape[-1]
