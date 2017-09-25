@@ -12,7 +12,7 @@ model_name = sys.argv[1]
 model_path = './model/' + model_name + '/'
 
 l_rate = float(sys.argv[2])
-r = reader.ReinforceReader('./data/train/', 'annotations_new.pkl', 16)
+r = reader.Reader('./data/train/', 'annotations_new.pkl', 16)
 
 sess = tf.Session()
 

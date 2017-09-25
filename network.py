@@ -113,6 +113,18 @@ def c7s(inflow, outsize, name, filters=128):
     l7 = layers.conv2d(l6, outsize, 1, activation_fn=tf.sigmoid)
   return l7
 
+def c7_rect(inflow, outsize, name, h=13, w=7, filters=128):
+  with tf.variable_scope(name):
+    l1 = layers.conv2d(inflow, filters, (1,h,w,1))
+    l2 = layers.conv2d(l1, filters, (1,h,w,1))
+    l3 = layers.conv2d(l2, filters, (1,h,w,1))
+    l4 = layers.conv2d(l3, filters, (1,h,w,1))
+    l5 = layers.conv2d(l4, filters, (1,h,w,1))
+    l6 = layers.conv2d(l5, filters, 1, activation_fn=None)
+    l7 = layers.conv2d(l6, outsize, 1, activation_fn=None)
+  return l7
+
+
 def fire(inflow, s11, e11, e33, name):
   with tf.variable_scope(name):
     squeeze = layers.conv2d(inflow, s11, 1)
@@ -134,6 +146,11 @@ def stage7(inflow, name, outsize_1=14, outsize_2=26):
 def stage7_large(inflow, name, outsize_1=14, outsize_2=26):
   l1 = c7_large(inflow, outsize_1, name + '_1')
   l2 = c7_large(inflow, outsize_2, name + '_2')
+  return l1, l2
+
+def stage_rect(inflow, name, outsize_1=14, outsize_2=26):
+  l1 = c7_rect(inflow, outsize_1, name + '_1')
+  l2 = c7_rect(inflow, outsize_2, name + '_2')
   return l1, l2
 
 # affinity map
@@ -357,7 +374,7 @@ def a7():
 
   return l0, kmaps, amaps
 
-# use deeper fmap
+# use fire module for fmap
 def a8():
   l0 = tf.placeholder(tf.float32, (None,None,None,3))
 
@@ -404,6 +421,49 @@ def a8():
 
   kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6, kmap_7, kmap_8]
   amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6, amap_7, amap_8]
+
+  return l0, kmaps, amaps
+
+# use stage_rect
+def a9():
+  l0 = tf.placeholder(tf.float32, (None,None,None,3))
+
+  # feature extraction
+  l1 = c2(l0, 64, 'module_1')
+  p1 = layers.max_pool2d(l1, 2)
+
+  l2 = c2(p1, 128, 'module_2')
+  p2 = layers.max_pool2d(l2, 2)
+
+  l3 = c4(p2, (256,256,256,256), 'module_3')
+  p3 = layers.max_pool2d(l3, 2)
+
+  fmap = c4(p3, (512,512,256,256), 'module_4')
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
+
+  l5_2 = c4(fmap, (128,128,128,512), 'stage_1_2')
+  amap_1 = layers.conv2d(l5_2, 26, 1, activation_fn=None) # 13 limbs
+
+  concat_1 = tf.concat((kmap_1, amap_1, fmap), axis=3)
+
+  kmap_2, amap_2 = stage_rect(concat_1, 'stage_2')
+  concat_2 = tf.concat((kmap_2, amap_2, fmap), axis=3)
+
+  kmap_3, amap_3 = stage_rect(concat_2, 'stage_3')
+  concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
+
+  kmap_4, amap_4 = stage_rect(concat_3, 'stage_4')
+  concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
+
+  kmap_5, amap_5 = stage_rect(concat_4, 'stage_5')
+  concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
+
+  kmap_6, amap_6 = stage_rect(concat_5, 'stage_6')
+
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
+  amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
 
   return l0, kmaps, amaps
 
