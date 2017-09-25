@@ -12,11 +12,11 @@ model_name = sys.argv[1]
 model_path = './model/' + model_name + '/'
 
 l_rate = float(sys.argv[2])
-r = reader.Reader('./data/train/', 'annotations_new.pkl', 16)
+r = reader.ReinforceReader('./data/train/', 'annotations_new.pkl', 16)
 
 sess = tf.Session()
 
-inflow, kmaps, amaps = network.a8()
+inflow, kmaps, amaps = network.a4()
 k_ref, a_ref, k_loss, a_loss, loss = network.compute_loss(kmaps, amaps, 0.5)
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 depth = len(kmaps)

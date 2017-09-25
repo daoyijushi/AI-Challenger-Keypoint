@@ -15,40 +15,26 @@ Flags = gflags.FLAGS
 gflags.DEFINE_string('model_path', '', 'where to restore model')
 gflags.DEFINE_string('test_path', '', 'where are the test images')
 gflags.DEFINE_string('save_path', '', 'where to save the results')
-gflags.DEFINE_bool('vis_anno', False, 'visualize the annotations or not')
-gflags.DEFINE_bool('use_old', False, 'use old version')
 
 Flags(sys.argv)
-
-print(Flags.use_old)
 
 model_path = Flags.model_path
 test_path = Flags.test_path
 save_path = Flags.save_path
-vis_anno = Flags.vis_anno
-use_old = Flags.use_old
 
 names = os.listdir(test_path)
 
-inflow, kmaps, amaps = network.a4()
+inflow, dmaps, amaps = network.a3()
 
 sess = tf.Session()
 saver = tf.train.Saver()
 
-if use_old:
-  try:
-    saver.restore(sess, model_path)
-  except Exception as e:
-    print(e)
-    exit(0)
+ckpt = tf.train.get_checkpoint_state(model_path)
+if ckpt:
+  saver.restore(sess, ckpt.model_checkpoint_path)
+  print(ckpt.model_checkpoint_path)
 else:
-  ckpt = tf.train.get_checkpoint_state(model_path)
-  if ckpt:
-    saver.restore(sess, ckpt.model_checkpoint_path)
-    print(ckpt.model_checkpoint_path)
-  else:
-    print('No available ckpt.')
-    exit(0)
+  print('No available ckpt.')
 
 limbs = util.get_limbs()
 connections = util.get_connections()
@@ -63,31 +49,32 @@ total = len(names)
 for name in names:
   tic = time.time()
   src = misc.imread(test_path+name)
-  h, w, _ = src.shape
   imgs, lefts, tops, rate = util.multi_resize(src, 368, 24)
 
   imgs -= mean
   imgs /= var
 
   rate /= 8 # due to dowsn sampling
-  batch_k, batch_a = sess.run([kmaps, amaps], feed_dict={inflow:imgs})
+  batch_d, batch_a = sess.run([dmaps, amaps], feed_dict={inflow:imgs})
 
-  batch_k = batch_k[-1]
+  batch_d = batch_d[-1]
   batch_a = batch_a[-1]
 
-  k = util.concat_maps(batch_k, lefts, tops, 8)
+  d = util.concat_maps(batch_d, lefts, tops, 8)
+  k = util.get_kmap_from_dmap(d, limbs)
+
+  # k = util.concat_maps(batch_k, lefts, tops, 8)
   a = util.concat_maps(batch_a, lefts, tops, 8)
 
   humans = inf_util_ka.reconstruct(a, k, 10)
   annos = inf_util_ka.format(humans, name.split('.')[0], rate)
   result.append(annos)
 
-  if vis_anno:
-    for human, ann in annos['keypoint_annotations'].items():
-      k_rev = util.get_key_hmap((h, w), [ann], util.get_patch(40,64), r=20)
-      src = misc.imread(test_path+name)
-      util.cover_key_map(src, k_rev)
-      misc.imsave('%s_%s.jpg'%(annos['image_id'], human), src)
+#   h, w, _ = dmap.shape
+#   grid_h, grid_w = util.get_grid(h, w)
+
+  # util.vis_kmap(k, name.split('.')[0]+('_k.jpg'))
+  # util.vis_amap(a, name.split('.')[0]+('_a.jpg'))
 
   toc = time.time()
 

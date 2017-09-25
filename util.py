@@ -125,6 +125,29 @@ def resize(src, length, left=0, top=0):
 
   return tmp, rate, left, top
 
+def rand_resize(src, length, random_flip=True, max_rate=2, delta_px=10):
+  h, w, _ = src.shape
+  short = min(h, w)
+  min_rate = (length + delta_px) / short
+  max_rate = min(max_rate, length*2/short)
+  rate = np.random.uniform(min_rate, max_rate)
+  tmp = misc.imresize(src, rate)
+
+  h, w, _ = tmp.shape
+  left = np.random.randint(0, w - length)
+  top = np.random.randint(0, h - length)
+
+  tmp = tmp[top:top+length, left:left+length]
+
+  flip = False
+  if random_flip:
+    if np.random.random() < 0.5:
+      tmp = tmp[:,::-1]
+      flip = True
+
+
+  return tmp, rate, left, top, flip
+
 def multi_resize(src, length, inter_px):
   h, w, _ = src.shape
   rate = None
@@ -172,6 +195,23 @@ def multi_resize(src, length, inter_px):
   #lefts = np.array(lefts, dtype=np.uint8)
   #tops = np.array(tops, dtype=np.uint8)
   return imgs, lefts, tops, rate
+
+def slide_window(src, length, rate, pic_num=4):
+  tmp = misc.imresize(src, rate)
+  h, w, _ = tmp.shape
+  imgs = []
+  lefts = []
+  tops = []
+  for top in np.linspace(0, h-length, pic_num):
+    top = int(top)
+    for left in np.linspace(0, w-length, pic_num):
+      left = int(left)
+      imgs.append(tmp[top:top+length, left:left+length, :])
+      lefts.append(lefts)
+      tops.append(tops)
+  imgs = np.array(imgs, dtype=np.float32)
+  return imgs, lefts, tops
+
 
 #grid: [[0,1,2,3,4,5,...],[0,1,2,3,4,5,...],...]
 def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid_h, grid_w):
