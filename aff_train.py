@@ -11,13 +11,21 @@ import os
 model_name = sys.argv[1]
 model_path = './model/' + model_name + '/'
 
-l_rate = float(sys.argv[2])
-r = reader.RectReader('./data/train/', 'annotations_new.pkl', 16)
-
 sess = tf.Session()
 
-inflow, kmaps, amaps = network.a9()
+l_rate = float(sys.argv[2])
+
+
+
+######################################################################
+r = reader.Reader('./data/train/', 'annotations_new.pkl', 16)
+inflow, kmaps, amaps = network.a8()
 k_ref, a_ref, k_loss, a_loss, loss = network.compute_loss(kmaps, amaps, 0.5)
+######################################################################
+
+
+
+
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 depth = len(kmaps)
 
@@ -67,9 +75,9 @@ while True:
     saver.save(sess, model_path+save_name, global_step=step_cnt)
 
     k, a = sess.run([kmaps, amaps], feed_dict={inflow:img[0:1]})
-    k = k[-1].reshape((46,46,14))
-    a = a[-1].reshape((46,46,26))
-    tmp = misc.imresize(img[0], (46,46))
+    k = np.squeeze(k[-1])
+    a = np.squeeze(a[-1])
+    tmp = misc.imresize(img[0], (60,34))
 
     util.vis_amap(affinity_hmap[0], '%d_ta.jpg'%step_cnt)
     util.vis_kmap(keypoint_hmap[0], '%d_tk.jpg'%step_cnt)

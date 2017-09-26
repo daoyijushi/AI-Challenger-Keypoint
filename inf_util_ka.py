@@ -194,14 +194,16 @@ def format(humans, img_id, rate):
   ret = {}
   ret['image_id'] = img_id
   ret['keypoint_annotations'] = {}
+  ratio = 1 / rate
+  base = ratio / 2
   for cnt, h in enumerate(humans):
     if len(h) < 5:
       continue
     tmp = []
     for k in range(14):
       if k in h.keys():
-        tmp.append(int(round(h[k][0] / rate)))
-        tmp.append(int(round(h[k][1] / rate)))
+        tmp.append(int(round(h[k][0]*ratio + base)))
+        tmp.append(int(round(h[k][1]*ratio + base)))
         tmp.append(1)
       else:
         tmp.append(0)

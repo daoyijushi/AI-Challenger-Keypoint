@@ -115,11 +115,11 @@ def c7s(inflow, outsize, name, filters=128):
 
 def c7_rect(inflow, outsize, name, h=13, w=7, filters=128):
   with tf.variable_scope(name):
-    l1 = layers.conv2d(inflow, filters, (1,h,w,1))
-    l2 = layers.conv2d(l1, filters, (1,h,w,1))
-    l3 = layers.conv2d(l2, filters, (1,h,w,1))
-    l4 = layers.conv2d(l3, filters, (1,h,w,1))
-    l5 = layers.conv2d(l4, filters, (1,h,w,1))
+    l1 = layers.conv2d(inflow, filters, (h,w))
+    l2 = layers.conv2d(l1, filters, (h,w))
+    l3 = layers.conv2d(l2, filters, (h,w))
+    l4 = layers.conv2d(l3, filters, (h,w))
+    l5 = layers.conv2d(l4, filters, (h,w))
     l6 = layers.conv2d(l5, filters, 1, activation_fn=None)
     l7 = layers.conv2d(l6, outsize, 1, activation_fn=None)
   return l7
@@ -387,8 +387,7 @@ def a8():
   p3 = layers.conv2d(l3, 256, 3, 2)
 
   l4 = fire(p3, 128, 256, 256, 'fire_3')
-  l5 = fire(l4, 128, 256, 256, 'fire_4')
-  fmap = c4(l5, (256,256,256,256), 'module_4')
+  fmap = c4(l4, (256,256,256,256), 'fmap')
 
   l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
   kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
@@ -411,15 +410,9 @@ def a8():
   concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
 
   kmap_6, amap_6 = stage7(concat_5, 'stage_6')
-  concat_6 = tf.concat((kmap_6, amap_6, fmap), axis=3)
 
-  kmap_7, amap_7 = stage7(concat_6, 'stage_7')
-  concat_7 = tf.concat((kmap_7, amap_7, fmap), axis=3)
-
-  kmap_8, amap_8 = stage7(concat_7, 'stage_8')
-
-  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6, kmap_7, kmap_8]
-  amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6, amap_7, amap_8]
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
+  amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
 
   return l0, kmaps, amaps
 
@@ -954,6 +947,20 @@ def compute_single_loss(inflow):
     loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref), axis=(1,2,3)))
 
   return ref, loss
+
+def compute_loss(kmaps, amaps, ratio=0.5):
+  ref_kmap = tf.placeholder(tf.float32, kmaps[0].shape)
+  ref_amap = tf.placeholder(tf.float32, amaps[0].shape)
+
+  k_loss = tf.constant(0, dtype=tf.float32)
+  a_loss = tf.constant(0, dtype=tf.float32)
+  for m in kmaps:
+    k_loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref_kmap), axis=(1,2,3)))
+  for m in amaps:
+    a_loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref_amap), axis=(1,2,3)))
+  loss = k_loss + ratio * a_loss
+
+  return ref_kmap, ref_amap, k_loss, a_loss, loss
 
 def compute_loss(kmaps, amaps, ratio=0.5):
   ref_kmap = tf.placeholder(tf.float32, kmaps[0].shape)

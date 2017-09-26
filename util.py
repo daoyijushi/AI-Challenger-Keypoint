@@ -238,7 +238,6 @@ def slide_window(src, length, rate, pic_num=4):
   imgs = np.array(imgs, dtype=np.float32)
   return imgs, lefts, tops
 
-
 #grid: [[0,1,2,3,4,5,...],[0,1,2,3,4,5,...],...]
 def find_another(k_slice, d_slice_x, d_slice_y, start_x, start_y, v_x, v_y, grid_h, grid_w):
   mod_v = np.sqrt(v_x**2+v_y**2) + 1e-8
@@ -648,7 +647,7 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, cnt, r=1):
     for i in range(x1, x2, step_x):
       mid = np.round(y1 + (i - x1) * rate).astype(int)
       top = max(mid - r, 0)
-      down = min(mid + r, h)
+      down = min(mid + r + 1, h)
       for j in range(top, down):
         aff_map[j, i, channel*2] += v_x / (2 ** abs(j-mid))
         aff_map[j, i, channel*2+1] += v_y / (2 ** abs(j-mid))
@@ -659,7 +658,7 @@ def draw_limb(aff_map, x1, y1, x2, y2, channel, cnt, r=1):
     for i in range(y1, y2, step_y):
       mid = np.round(x1 + (i - y1) * rate).astype(int)
       left = max(mid - r, 0)
-      right = min(mid + r, w)
+      right = min(mid + r + 1, w)
       for j in range(left, right):
         aff_map[i, j, channel*2] += v_x / (2 ** abs(j-mid))
         aff_map[i, j, channel*2+1] += v_y / (2 ** abs(j-mid))
