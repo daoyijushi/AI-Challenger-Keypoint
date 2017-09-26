@@ -962,16 +962,21 @@ def compute_loss(kmaps, amaps, ratio=0.5):
 
   return ref_kmap, ref_amap, k_loss, a_loss, loss
 
-def compute_loss(kmaps, amaps, ratio=0.5):
+def discount_loss(pred, ref, rate=0.5):
+  diff = pred - ref
+  diff = tf.minimum(diff, rate*diff)
+  return tf.reduce_mean(tf.reduce_sum(tf.square(diff), axis=(1,2,3)))
+
+def loss1(kmaps, amaps, ratio=0.5):
   ref_kmap = tf.placeholder(tf.float32, kmaps[0].shape)
   ref_amap = tf.placeholder(tf.float32, amaps[0].shape)
 
   k_loss = tf.constant(0, dtype=tf.float32)
   a_loss = tf.constant(0, dtype=tf.float32)
   for m in kmaps:
-    k_loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref_kmap), axis=(1,2,3)))
+    k_loss += discount_loss(m, ref_kmap)
   for m in amaps:
-    a_loss += tf.reduce_mean(tf.reduce_sum(tf.square(m - ref_amap), axis=(1,2,3)))
+    a_loss += discount_loss(a, ref_amap)
   loss = k_loss + ratio * a_loss
 
   return ref_kmap, ref_amap, k_loss, a_loss, loss
