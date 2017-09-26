@@ -59,6 +59,7 @@ var = np.array([35.77071304, 35.39201422, 37.7260754])
 
 cnt = 0
 total = len(names)
+elapse = 0
 
 for name in names:
   tic = time.time()
@@ -91,11 +92,11 @@ for name in names:
 
   toc = time.time()
 
-  print(name, 'time cost', toc-tic)
-
   cnt += 1
-  if cnt % 100 == 0:
-    print('%d/%d' % (cnt, total))
+  interval = toc - tic
+  eplase += interval
+  remain = (elapse/cnt)*(total-cnt)
+  print('%d/%d time cost %g remain %g' % (cnt, total, interval, remain))
 
 j = json.dumps(result)
 with open(save_path, 'w') as f:
