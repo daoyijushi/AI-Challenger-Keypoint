@@ -20,8 +20,6 @@ gflags.DEFINE_bool('use_old', False, 'use old version')
 
 Flags(sys.argv)
 
-print(Flags.use_old)
-
 model_path = Flags.model_path
 test_path = Flags.test_path
 save_path = Flags.save_path
@@ -95,8 +93,11 @@ for name in names:
   cnt += 1
   interval = toc - tic
   elapse += interval
+  if cnt == 2:
+    elapse = interval * 2
   remain = (elapse/cnt)*(total-cnt)
   print('%d/%d time cost %g remain %g' % (cnt, total, interval, remain))
+
 
 j = json.dumps(result)
 with open(save_path, 'w') as f:

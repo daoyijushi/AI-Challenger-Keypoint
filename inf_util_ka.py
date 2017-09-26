@@ -72,7 +72,7 @@ def flat(k_slice, x, y, r):
     # k_slice[top:down, left:right] = 0
   k_slice = np.maximum(k_slice, 0)
 
-def find_outstander_layer(kslice, mask_r, stop_thres):
+def find_outstander_layer(kslice, mask_r, stop_thres, target=0):
   ret = []
   while True:
 
@@ -85,7 +85,7 @@ def find_outstander_layer(kslice, mask_r, stop_thres):
     # print(y, x)
     # print(kmap[y,x,layer])
 
-    if kslice[y, x] < stop_thres:
+    if kslice[y, x] < stop_thres and len(ret) >= target:
       break
     ret.append((x, y))
 
@@ -175,7 +175,7 @@ def reconstruct(amap, kmap, mask_r):
 
       # util.vis_layer(k_slice, 'k%d.jpg'%layer2, 'ffa97d027dfc2f2fc62692a035535579c5be74e0.jpg')
 
-      end = find_outstander_layer(k_slice, mask_r, stop_thres)
+      end = find_outstander_layer(k_slice, mask_r, stop_thres, target=len(start))
       # print(end)
 
       ax = amap[:,:,a_layer*2]
