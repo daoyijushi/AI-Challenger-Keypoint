@@ -36,6 +36,7 @@ saver = tf.train.Saver()
 if use_old:
   try:
     saver.restore(sess, model_path)
+    print(model_path)
   except Exception as e:
     print(e)
     exit(0)

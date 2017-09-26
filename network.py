@@ -124,7 +124,6 @@ def c7_rect(inflow, outsize, name, h=13, w=7, filters=128):
     l7 = layers.conv2d(l6, outsize, 1, activation_fn=None)
   return l7
 
-
 def fire(inflow, s11, e11, e33, name):
   with tf.variable_scope(name):
     squeeze = layers.conv2d(inflow, s11, 1)

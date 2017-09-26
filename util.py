@@ -125,6 +125,32 @@ def resize(src, length, left=0, top=0):
 
   return tmp, rate, left, top
 
+def rect_resize(src, target_h, target_w, left=0, top=0):
+  h, w, _ = src.shape
+  target_rate = target_w / target_h
+  src_rate = w / h
+
+  if target_rate < src_rate:
+    rate = target_h / h
+    tmp = misc.imresize(src, (target_h, int(rate*w)))
+    if tmp.shape[1] > target_w:
+      left = np.random.randint(0, tmp.shape[1] - target_w)
+      right = left + target_w
+      tmp = tmp[:, left:right, :]
+    else:
+      tmp = misc.imresize(tmp, (target_h, target_w))
+  else:
+    rate = target_w / w
+    tmp = misc.imresize(src, (int(rate*h), target_w))
+    if tmp.shape[0] > target_h:
+      top = np.random.randint(0, tmp.shape[0] - target_h)
+      bottom = top + target_h
+      tmp = tmp[top:bottom, :, :]
+    else:
+      tmp = misc.imresize(tmp, (target_h, target_w))
+
+  return tmp, rate, left, top
+
 def rand_resize(src, length, random_flip=True, max_rate=2, delta_px=10):
   h, w, _ = src.shape
   short = min(h, w)

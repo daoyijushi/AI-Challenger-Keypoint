@@ -12,11 +12,11 @@ model_name = sys.argv[1]
 model_path = './model/' + model_name + '/'
 
 l_rate = float(sys.argv[2])
-r = reader.Reader('./data/train/', 'annotations_new.pkl', 16)
+r = reader.RectReader('./data/train/', 'annotations_new.pkl', 16)
 
 sess = tf.Session()
 
-inflow, kmaps, amaps = network.a4()
+inflow, kmaps, amaps = network.a9()
 k_ref, a_ref, k_loss, a_loss, loss = network.compute_loss(kmaps, amaps, 0.5)
 train_step = tf.train.AdagradOptimizer(l_rate).minimize(loss)
 depth = len(kmaps)
@@ -71,13 +71,13 @@ while True:
     a = a[-1].reshape((46,46,26))
     tmp = misc.imresize(img[0], (46,46))
 
-    util.vis_amap(affinity_hmap[0], 'truth_amap_%d.jpg'%step_cnt)
-    util.vis_kmap(keypoint_hmap[0], 'truth_kmap_%d.jpg'%step_cnt)
+    util.vis_amap(affinity_hmap[0], '%d_ta.jpg'%step_cnt)
+    util.vis_kmap(keypoint_hmap[0], '%d_tk.jpg'%step_cnt)
 
-    util.vis_amap(a, 'pred_amap_%d.jpg'%step_cnt)
-    util.vis_kmap(k, 'pred_kmap_%d.jpg'%step_cnt)
+    util.vis_amap(a, '%d_pa.jpg'%step_cnt)
+    util.vis_kmap(k, '%d_pk.jpg'%step_cnt)
 
-    misc.imsave('src_%d.jpg'%step_cnt, img[0])
+    misc.imsave('%d_src.jpg'%step_cnt, img[0])
 
     with open('train_log.txt', 'a') as f:
       f.write(str(int(step_cnt)))
