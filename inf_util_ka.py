@@ -104,7 +104,7 @@ def find_outstander_brick(kmap, mask_r, stop_thres):
   h, w, _ = kmap.shape
   response = np.sum(kmap, axis=(0,1))
   layer = np.argmax(response)
-  ret = find_outstander_layer(kmap[:,:,layer], mask_r, stop_thres)
+  ret = find_outstander_layer(kmap[:,:,layer], mask_r, stop_thres, target=1)
 
   return ret, layer
 

@@ -16,6 +16,7 @@ gflags.DEFINE_string('model_path', '', 'where to restore model')
 gflags.DEFINE_string('test_path', '', 'where are the test images')
 gflags.DEFINE_string('save_path', '', 'where to save the results')
 gflags.DEFINE_bool('vis_anno', False, 'visualize the annotations or not')
+gflags.DEFINE_bool('save', False, 'save kmap and amap')
 gflags.DEFINE_bool('use_old', False, 'use old version')
 
 Flags(sys.argv)
@@ -25,6 +26,7 @@ test_path = Flags.test_path
 save_path = Flags.save_path
 vis_anno = Flags.vis_anno
 use_old = Flags.use_old
+save = Flags.save
 
 names = os.listdir(test_path)
 
@@ -88,6 +90,10 @@ for name in names:
       src = misc.imread(test_path+name)
       util.cover_key_map(src, k_rev)
       misc.imsave('%s_%s.jpg'%(annos['image_id'], human), src)
+
+  if save:
+    np.save(annos['image_id']+'_k.npy', k)
+    np.save(annos['image_id']+'_a.npy', a)
 
   toc = time.time()
 

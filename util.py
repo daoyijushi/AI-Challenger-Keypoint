@@ -222,6 +222,53 @@ def multi_resize(src, length, inter_px):
   #tops = np.array(tops, dtype=np.uint8)
   return imgs, lefts, tops, rate
 
+def multi_rect(src, target_h, target_w, inter_px, left=0, top=0):
+  h, w, _ = src.shape
+  target_rate = target_w / target_h
+  src_rate = w / h
+  imgs = []
+  lefts = []
+  tops = []
+  if target_rate < src_rate:
+    rate = target_h / h
+    tmp = misc.imresize(src, (target_h, int(rate*w)))
+    if tmp.shape[1] > target_w:
+      for left in range(0, tmp.shape[1] - target_w, inter_px):
+        right = left + target_w
+        imgs.append(tmp[:, left:right, :])
+        lefts.append(left)
+        tops.append(0)
+      left = tmp.shape[1] - target_w
+      right = left + target_w
+      imgs.append(tmp[:, left:right, :])
+      lefts.append(left)
+      tops.append(0)
+    else:
+      imgs.append(misc.imresize(tmp, (target_h, target_w)))
+      lefts.append(0)
+      tops.append(0)
+  else:
+    rate = target_w / w
+    tmp = misc.imresize(src, (int(rate*h), target_w))
+    if tmp.shape[0] > target_h:
+      for top in range(0, tmp.shape[0] - target_h, inter_px):
+        bottom = top + target_h
+        imgs.append(tmp[top:bottom, :, :])
+        lefts.append(0)
+        tops.append(top)
+      top = tmp.shape[0] - target_h
+      bottom = top + target_h
+      imgs.append(tmp[top:bottom, :, :])
+      lefts.append(0)
+      tops.append(top)
+    else:
+      imgs.append(misc.imresize(tmp, (target_h, target_w)))
+      lefts.append(0)
+      tops.append(0)
+  imgs = np.array(imgs, dtype=np.float32)
+
+  return tmp, rate, left, top
+
 def slide_window(src, length, rate, pic_num=4):
   tmp = misc.imresize(src, rate)
   h, w, _ = tmp.shape
