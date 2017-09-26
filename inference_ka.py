@@ -94,7 +94,7 @@ for name in names:
 
   cnt += 1
   interval = toc - tic
-  eplase += interval
+  elapse += interval
   remain = (elapse/cnt)*(total-cnt)
   print('%d/%d time cost %g remain %g' % (cnt, total, interval, remain))
 
