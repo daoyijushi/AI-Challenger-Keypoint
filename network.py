@@ -976,7 +976,7 @@ def loss1(kmaps, amaps, ratio=0.5):
   for m in kmaps:
     k_loss += discount_loss(m, ref_kmap)
   for m in amaps:
-    a_loss += discount_loss(a, ref_amap)
+    a_loss += discount_loss(m, ref_amap)
   loss = k_loss + ratio * a_loss
 
   return ref_kmap, ref_amap, k_loss, a_loss, loss

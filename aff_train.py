@@ -19,8 +19,8 @@ l_rate = float(sys.argv[2])
 
 ######################################################################
 r = reader.Reader('./data/train/', 'annotations_new.pkl', 16)
-inflow, kmaps, amaps = network.a8()
-k_ref, a_ref, k_loss, a_loss, loss = network.compute_loss(kmaps, amaps, 0.5)
+inflow, kmaps, amaps = network.a4()
+k_ref, a_ref, k_loss, a_loss, loss = network.loss1(kmaps, amaps, 0.5)
 ######################################################################
 
 

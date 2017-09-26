@@ -30,7 +30,7 @@ save = Flags.save
 
 names = os.listdir(test_path)
 
-inflow, kmaps, amaps = network.a4()
+inflow, kmaps, amaps = network.a8()
 
 sess = tf.Session()
 saver = tf.train.Saver()
@@ -67,6 +67,8 @@ for name in names:
   src = misc.imread(test_path+name)
   h, w, _ = src.shape
   imgs, lefts, tops, rate = util.multi_resize(src, 368, 24)
+  # imgs, lefts, tops, rate = util.multi_rect(src, 480, 272, 24)
+
 
   imgs -= mean
   imgs /= var

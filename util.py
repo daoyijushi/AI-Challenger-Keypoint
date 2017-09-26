@@ -267,7 +267,7 @@ def multi_rect(src, target_h, target_w, inter_px, left=0, top=0):
       tops.append(0)
   imgs = np.array(imgs, dtype=np.float32)
 
-  return tmp, rate, left, top
+  return imgs, lefts, tops, rate
 
 def slide_window(src, length, rate, pic_num=4):
   tmp = misc.imresize(src, rate)
@@ -542,17 +542,16 @@ def validate(x, y, v, h, w, strict):
 # for example, img is 368x368, and map is 46x46
 # then img2map is 8 (368/46=8)
 def concat_maps(batch_maps, lefts, tops, img2map):
-  length = batch_maps.shape[1]
-  depth = batch_maps.shape[3]
-  w = lefts[-1] // img2map + length
-  h = tops[-1] // img2map + length
+  _, height, width, depth = batch_maps.shape
+  w = lefts[-1] // img2map + width
+  h = tops[-1] // img2map + height
   big_map = np.zeros((h,w,depth))
   cnt = np.zeros((h,w))
   for i in range(len(lefts)):
     left = lefts[i] // img2map
-    right = left + length
+    right = left + width
     top = tops[i] // img2map
-    bottom = top + length
+    bottom = top + height
     big_map[top:bottom, left:right, :] += batch_maps[i, :, :, :]
     cnt[top:bottom, left:right] += 1
   big_map /= np.reshape(cnt, (h,w,1))
