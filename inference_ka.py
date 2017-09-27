@@ -30,7 +30,7 @@ save = Flags.save
 
 names = os.listdir(test_path)
 
-inflow, kmaps, amaps = network.a8()
+inflow, kmaps, amaps = network.a9()
 
 sess = tf.Session()
 saver = tf.train.Saver()

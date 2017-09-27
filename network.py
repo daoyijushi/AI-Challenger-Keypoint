@@ -43,6 +43,15 @@ def c5(inflow, outsize, name, filters=128):
     l5 = layers.conv2d(l4, outsize, 1, activation_fn=None)
   return l5
 
+def c5_rect(inflow, outsize, name, h=13, w=7, filters=128):
+  with tf.variable_scope(name):
+    l1 = layers.conv2d(inflow, filters, (h,w))
+    l2 = layers.conv2d(l1, filters, (h,w))
+    l3 = layers.conv2d(l2, filters, (h,w))
+    l4 = layers.conv2d(l3, filters, (h,w))
+    l5 = layers.conv2d(l4, outsize, 1, activation_fn=None)
+  return l5
+
 # the last 2 layers' act_fn is None
 def c7(inflow, outsize, name, filters=128):
   with tf.variable_scope(name):
@@ -150,6 +159,11 @@ def stage7_large(inflow, name, outsize_1=14, outsize_2=26):
 def stage_rect(inflow, name, outsize_1=14, outsize_2=26):
   l1 = c7_rect(inflow, outsize_1, name + '_1')
   l2 = c7_rect(inflow, outsize_2, name + '_2')
+  return l1, l2
+
+def stage_rect_small(inflow, name, outsize_1=14, outsize_2=26):
+  l1 = c5_rect(inflow, outsize_1, name + '_1', 11, 5)
+  l2 = c5_rect(inflow, outsize_2, name + '_2', 11, 5)
   return l1, l2
 
 # affinity map
@@ -431,6 +445,77 @@ def a9():
   p3 = layers.max_pool2d(l3, 2)
 
   fmap = c4(p3, (512,512,256,256), 'module_4')
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
+
+  l5_2 = c4(fmap, (128,128,128,512), 'stage_1_2')
+  amap_1 = layers.conv2d(l5_2, 26, 1, activation_fn=None) # 13 limbs
+
+  concat_1 = tf.concat((kmap_1, amap_1, fmap), axis=3)
+
+  kmap_2, amap_2 = stage_rect(concat_1, 'stage_2')
+  concat_2 = tf.concat((kmap_2, amap_2, fmap), axis=3)
+
+  kmap_3, amap_3 = stage_rect(concat_2, 'stage_3')
+  concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
+
+  kmap_4, amap_4 = stage_rect(concat_3, 'stage_4')
+  concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
+
+  kmap_5, amap_5 = stage_rect(concat_4, 'stage_5')
+  concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
+
+  kmap_6, amap_6 = stage_rect(concat_5, 'stage_6')
+
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
+  amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
+
+  return l0, kmaps, amaps
+
+def dense_layer(inflow, name, gr=12, bn=False):
+  with tf.variable_scope(name):
+    l = layers.conv2d(inflow, gr, 3)
+    inflow = tf.concat((l, inflow), 3)
+  return inflow
+
+def dense_transition(inflow, name):
+  with tf.variable_scope(name):
+    in_filters = inflow.get_shape().as_list()[3]
+    inflow = layers.batch_norm(inflow, activation_fn=tf.nn.relu)
+    inflow = layers.conv2d(inflow, in_filters, 1)
+    inflow = layers.avg_pool2d(inflow, 2)
+  return inflow
+
+def densenet(inflow):
+  N = 6
+  l = layers.conv2d(inflow, 16, 3)
+
+  with tf.variable_scope('block1'):
+    for i in range(N):
+      l = dense_layer(l, 'layer%d'%i)
+    l = dense_transition(l, 'trans1')
+
+  with tf.variable_scope('block2'):
+    for i in range(N):
+      l = dense_layer(l, 'layer%d'%i)
+    l = dense_transition(l, 'trans2')
+
+  with tf.variable_scope('block3'):
+    for i in range(N):
+      l = dense_layer(l, 'layer%d'%i)
+    l = dense_transition(l, 'trans3')
+
+  l = layers.batch_norm(l, activation_fn=tf.nn.relu)
+
+  return l
+
+# use dense net
+def a12():
+  l0 = tf.placeholder(tf.float32, (None,None,None,3))
+
+  l1 = densenet(l0)
+  fmap = layers.conv2d(l1, 256, 1)
 
   l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
   kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
