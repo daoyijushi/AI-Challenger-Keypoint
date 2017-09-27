@@ -18,10 +18,10 @@ l_rate = float(sys.argv[2])
 
 
 ######################################################################
-# r = reader.RectReader('./data/train/', 'annotations_new.pkl', 16, h=368, w=208)
-r = reader.RectReader('./data/train/', 'annotations_new.pkl', 16)
+r = reader.RectReader('./data/train/', 'annotations_large.pkl', 16, h=368, w=208)
+# r = reader.RectReader('./data/train/', 'annotations_large.pkl', 16)
 # r = reader.RectReader('./data/validate/', 'val_anno.pkl', 16)
-inflow, kmaps, amaps = network.a9()
+inflow, kmaps, amaps = network.a13()
 k_ref, a_ref, k_loss, a_loss, loss = network.compute_loss(kmaps, amaps, 0.5)
 ######################################################################
 

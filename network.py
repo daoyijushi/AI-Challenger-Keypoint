@@ -473,10 +473,10 @@ def a9():
 
   return l0, kmaps, amaps
 
-def dense_layer(inflow, name, gr=12, bn=False):
+def dense_layer(inflow, name, sz=3, gr=8):
   with tf.variable_scope(name):
-    l = layers.conv2d(inflow, gr, 3)
-    inflow = tf.concat((l, inflow), 3)
+    l = layers.conv2d(inflow, gr, sz)
+    inflow = tf.concat((l, inflow), axis=3)
   return inflow
 
 def dense_transition(inflow, name):
@@ -509,6 +509,18 @@ def densenet(inflow):
   l = layers.batch_norm(l, activation_fn=tf.nn.relu)
 
   return l
+
+def dense_rect(inflow, outsize, name, actfn, N=6):
+  with tf.variable_scope(name):
+    for i in range(N):
+      inflow = dense_layer(inflow, 'layer%d'%i, (13,7))
+    outflow = layers.conv2d(inflow, outsize, 1, activation_fn=actfn)
+  return outflow
+
+def dense_stage(inflow, name, outsize_1=14, outsize_2=26):
+  l1 = dense_rect(inflow, outsize_1, name + '_1', tf.nn.relu)
+  l2 = dense_rect(inflow, outsize_2, name + '_2', None)
+  return l1, l2
 
 # use dense net
 def a12():
@@ -543,6 +555,41 @@ def a12():
   amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
 
   return l0, kmaps, amaps
+
+# use dense_stage
+def a13():
+  l0 = tf.placeholder(tf.float32, (None,None,None,3))
+
+  l1 = densenet(l0)
+  fmap = layers.conv2d(l1, 256, 1)
+
+  l5_1 = c4(fmap, (128,128,128,512), 'stage_1_1')
+  kmap_1 = layers.conv2d(l5_1, 14, 1) # 14 keypoints
+
+  l5_2 = c4(fmap, (128,128,128,512), 'stage_1_2')
+  amap_1 = layers.conv2d(l5_2, 26, 1, activation_fn=None) # 13 limbs
+
+  concat_1 = tf.concat((kmap_1, amap_1, fmap), axis=3)
+
+  kmap_2, amap_2 = dense_stage(concat_1, 'stage_2')
+  concat_2 = tf.concat((kmap_2, amap_2, fmap), axis=3)
+
+  kmap_3, amap_3 = dense_stage(concat_2, 'stage_3')
+  concat_3 = tf.concat((kmap_3, amap_3, fmap), axis=3)
+
+  kmap_4, amap_4 = dense_stage(concat_3, 'stage_4')
+  concat_4 = tf.concat((kmap_4, amap_4, fmap), axis=3)
+
+  kmap_5, amap_5 = dense_stage(concat_4, 'stage_5')
+  concat_5 = tf.concat((kmap_5, amap_5, fmap), axis=3)
+
+  kmap_6, amap_6 = dense_stage(concat_5, 'stage_6')
+
+  kmaps = [kmap_1, kmap_2, kmap_3, kmap_4, kmap_5, kmap_6]
+  amaps = [amap_1, amap_2, amap_3, amap_4, amap_5, amap_6]
+
+  return l0, kmaps, amaps
+
 
 # shallow
 def dirmap():
